@@ -2,6 +2,7 @@ import {NextResponse} from 'next/server';
 import {createAdminClient} from '@/lib/supabase/admin';
 import {getPaddleServer} from '@/lib/paddle/server';
 import {upsertSubscriptionFromPaddle} from '@/lib/paddle/sync';
+import {shouldProcessWebhook} from '@/lib/paddle/webhook-state.mjs';
 
 export const runtime = 'nodejs';
 
@@ -61,31 +62,37 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const {data: existing} = await admin
     .from('paddle_webhook_events')
-    .select('event_id')
+    .select('event_id, processing_error')
     .eq('event_id', event.eventId)
     .maybeSingle();
 
-  if (existing) {
+  if (!shouldProcessWebhook(existing)) {
     return NextResponse.json({ok: true, duplicate: true});
   }
 
-  const {error: insertError} = await admin.from('paddle_webhook_events').insert({
-    event_id: event.eventId,
-    event_type: event.eventType,
-    occurred_at: event.occurredAt ?? null,
-    payload: {type: event.eventType, id: event.eventId},
-  });
-  if (insertError) {
-    // race on unique event_id → treat as duplicate
-    if (insertError.code === '23505') {
-      return NextResponse.json({ok: true, duplicate: true});
+  if (!existing) {
+    const {error: insertError} = await admin.from('paddle_webhook_events').insert({
+      event_id: event.eventId,
+      event_type: event.eventType,
+      occurred_at: event.occurredAt ?? null,
+      payload: {type: event.eventType, id: event.eventId},
+    });
+    if (insertError) {
+      // race on unique event_id → treat as duplicate
+      if (insertError.code === '23505') {
+        return NextResponse.json({ok: true, duplicate: true});
+      }
+      console.error('paddle webhook: failed to record event');
+      return NextResponse.json({error: 'db error'}, {status: 500});
     }
-    console.error('paddle webhook: failed to record event');
-    return NextResponse.json({error: 'db error'}, {status: 500});
   }
 
   try {
     await handleEvent(event);
+    await admin
+      .from('paddle_webhook_events')
+      .update({processing_error: null, processed_at: new Date().toISOString()})
+      .eq('event_id', event.eventId);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'processing failed';
     await admin
