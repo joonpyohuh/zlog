@@ -88,38 +88,53 @@ export default function App() {
   }, [files]);
 
   useEffect(() => {
-    if (!job || job.status === 'done' || job.status === 'error') return;
+    const jobId = job?.id;
+    const jobStatus = job?.status;
+    if (!jobId || jobStatus === 'done' || jobStatus === 'error') return;
+    let failedPolls = 0;
     const t = window.setInterval(async () => {
-      const res = await fetch(apiUrl(`/api/jobs/${job.id}`));
-      if (!res.ok) return;
-      const next = (await res.json()) as JobStatus;
-      setJob(next);
-      if (next.status === 'done' || next.status === 'error') {
-        setBusy(false);
-        if (next.status === 'done') {
-          setText('');
-          setFiles((prev) => {
-            for (const f of prev) if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
-            return [];
-          });
-          void fetch(apiUrl(`/api/jobs/${next.id}/review-items`))
-            .then((r) => (r.ok ? r.json() : null))
-            .then((data) => {
-              if (!data?.items) return;
-              setReviewItems(data.items as ReviewItem[]);
-              const init: Record<string, 'keep' | 'drop' | 'skip'> = {};
-              for (const item of data.items as ReviewItem[]) {
-                init[item.segment_id] = item.suggested;
-              }
-              setReviewChoices(init);
-              setReviewSaved(false);
-            })
-            .catch(() => undefined);
+      try {
+        const res = await fetch(apiUrl(`/api/jobs/${jobId}`));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        failedPolls = 0;
+        const next = (await res.json()) as JobStatus;
+        setJob(next);
+        if (next.status === 'done' || next.status === 'error') {
+          setBusy(false);
+          if (next.status === 'done') {
+            setText('');
+            setFiles((prev) => {
+              for (const f of prev) if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+              return [];
+            });
+            void fetch(apiUrl(`/api/jobs/${next.id}/review-items`))
+              .then((r) => (r.ok ? r.json() : null))
+              .then((data) => {
+                if (!data?.items) return;
+                setReviewItems(data.items as ReviewItem[]);
+                const init: Record<string, 'keep' | 'drop' | 'skip'> = {};
+                for (const item of data.items as ReviewItem[]) {
+                  init[item.segment_id] = item.suggested;
+                }
+                setReviewChoices(init);
+                setReviewSaved(false);
+              })
+              .catch(() => undefined);
+          }
         }
+      } catch {
+        failedPolls += 1;
+        if (failedPolls < 5) return;
+        setBusy(false);
+        setJob((current) =>
+          current?.id === jobId
+            ? {...current, status: 'error', error: 'Connection lost while checking your film. Try again.'}
+            : current,
+        );
       }
     }, 1200);
     return () => window.clearInterval(t);
-  }, [job]);
+  }, [job?.id, job?.status]);
 
   function addFiles(list: FileList | File[]) {
     const next = Array.from(list)
