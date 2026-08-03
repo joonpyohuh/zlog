@@ -77,6 +77,8 @@ export default function App() {
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [reviewChoices, setReviewChoices] = useState<Record<string, 'keep' | 'drop' | 'skip'>>({});
   const [reviewSaved, setReviewSaved] = useState(false);
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -118,6 +120,7 @@ export default function App() {
                 }
                 setReviewChoices(init);
                 setReviewSaved(false);
+                setReviewError(null);
               })
               .catch(() => undefined);
           }
@@ -198,6 +201,33 @@ export default function App() {
     }
   }
 
+  async function saveReview() {
+    if (!job || reviewSaving) return;
+    setReviewSaving(true);
+    setReviewError(null);
+    const decisions = reviewItems
+      .map((item) => ({
+        segment_id: item.segment_id,
+        decision: reviewChoices[item.segment_id],
+        reason: `web ${reviewChoices[item.segment_id]}`,
+      }))
+      .filter((d) => d.decision === 'keep' || d.decision === 'drop');
+
+    try {
+      const response = await fetch(apiUrl(`/api/jobs/${job.id}/review`), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({decisions}),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setReviewSaved(true);
+    } catch {
+      setReviewError('Could not save your judgments. Try again.');
+    } finally {
+      setReviewSaving(false);
+    }
+  }
+
   const canSend = !busy && (text.trim().length > 0 || files.length > 0);
   const showBrand = !job || (job.status !== 'done' && job.status !== 'running' && job.status !== 'queued');
 
@@ -269,6 +299,7 @@ export default function App() {
                   setReviewItems([]);
                   setReviewChoices({});
                   setReviewSaved(false);
+                  setReviewError(null);
                 }}
               >
                 New film
@@ -290,6 +321,7 @@ export default function App() {
                           <button
                             key={d}
                             type="button"
+                            aria-pressed={reviewChoices[item.segment_id] === d}
                             className={`review-btn${reviewChoices[item.segment_id] === d ? ' review-btn--on' : ''}`}
                             onClick={() =>
                               setReviewChoices((prev) => ({...prev, [item.segment_id]: d}))
@@ -305,25 +337,12 @@ export default function App() {
                 <button
                   type="button"
                   className="review-save"
-                  onClick={() => {
-                    const decisions = reviewItems
-                      .map((item) => ({
-                        segment_id: item.segment_id,
-                        decision: reviewChoices[item.segment_id],
-                        reason: `web ${reviewChoices[item.segment_id]}`,
-                      }))
-                      .filter((d) => d.decision === 'keep' || d.decision === 'drop');
-                    void fetch(apiUrl(`/api/jobs/${job.id}/review`), {
-                      method: 'POST',
-                      headers: {'Content-Type': 'application/json'},
-                      body: JSON.stringify({decisions}),
-                    }).then((r) => {
-                      if (r.ok) setReviewSaved(true);
-                    });
-                  }}
+                  disabled={reviewSaving}
+                  onClick={() => void saveReview()}
                 >
-                  Save judgments
+                  {reviewSaving ? 'Saving…' : 'Save judgments'}
                 </button>
+                {reviewError && <p className="error-body" role="alert">{reviewError}</p>}
               </div>
             )}
             {reviewSaved && <p className="result-meta">Taste updated</p>}
