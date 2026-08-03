@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.pytest_cache/
+.ruff_cache/
+
+# intermediate pipeline artifacts (per-run, regenerable — see CLAUDE.md)
+work/*
+!work/.gitkeep
+
+# raw source footage (large binaries, not for the repo)
+footage/*
+!footage/.gitkeep
+
+# Remotion / Node (render/ project)
+render/node_modules/
+render/out/
+render/.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Claude Code local settings (machine-specific, not shared)
+.claude/settings.local.json
