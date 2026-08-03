@@ -41,6 +41,10 @@ WEB_DURATION_CAP = 12.0
 # Half-res render (~4× fewer pixels) for the local web path; CLI can override.
 WEB_RENDER_SCALE = float(os.getenv("ZLOG_WEB_RENDER_SCALE", "0.5"))
 WEB_RENDER_CONCURRENCY = int(os.getenv("ZLOG_WEB_RENDER_CONCURRENCY", "2"))
+MAX_UPLOAD_FILES = int(os.getenv("ZLOG_MAX_UPLOAD_FILES", "20"))
+MAX_UPLOAD_BYTES = int(os.getenv("ZLOG_MAX_UPLOAD_BYTES", str(500 * 1024 * 1024)))
+MAX_NOTE_CHARS = int(os.getenv("ZLOG_MAX_NOTE_CHARS", "2000"))
+ALLOWED_UPLOAD_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".mp4", ".mov"}
 
 _jobs_lock = threading.Lock()
 
@@ -50,7 +54,7 @@ def _mark_stale_jobs() -> None:
     for path in JOBS_ROOT.glob("*.json"):
         try:
             job = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
+        except (OSError, json.JSONDecodeError):
             continue
         if job.get("status") in ("queued", "running"):
             job["status"] = "error"
@@ -90,6 +94,7 @@ def _run(cmd: list[str], cwd: Path | None = None) -> None:
     result = subprocess.run(
         cmd,
         cwd=cwd or REPO_ROOT,
+        check=False,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -274,9 +279,9 @@ def _process_job(
         if project_dir.exists():
             shutil.rmtree(project_dir)
         project_dir.mkdir(parents=True, exist_ok=True)
-        if note.strip():
-            (project_dir / "note.txt").write_text(note.strip(), encoding="utf-8")
-            (footage_dir / "note.txt").write_text(note.strip(), encoding="utf-8")
+        if note:
+            (project_dir / "note.txt").write_text(note, encoding="utf-8")
+            (footage_dir / "note.txt").write_text(note, encoding="utf-8")
 
         beats_json = bgm.with_suffix(".beats.json")
         if not beats_json.exists():
@@ -347,7 +352,7 @@ def _process_job(
         if dev_mode:
             done_fields["telemetry"] = [s.public_dict() for s in result.stages]
         _set_job(job_id, **done_fields)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - persist every pipeline failure in the job status
         _set_job(job_id, status="error", error=_friendly_error(exc), detail=str(exc)[:1200])
 
 
@@ -359,8 +364,13 @@ async def create_job(
     dev_mode: str = Form("0"),
 ):
     uploads = files or []
-    if not note.strip() and not uploads:
+    note = note.strip()
+    if not note and not uploads:
         raise HTTPException(400, "Attach a photo, video, or note.")
+    if len(uploads) > MAX_UPLOAD_FILES:
+        raise HTTPException(413, f"Upload up to {MAX_UPLOAD_FILES} files at a time.")
+    if len(note) > MAX_NOTE_CHARS:
+        raise HTTPException(413, f"Keep your note under {MAX_NOTE_CHARS} characters.")
 
     job_id = uuid.uuid4().hex[:10]
     project = f"web_{job_id}"
@@ -369,21 +379,29 @@ async def create_job(
 
     saved = 0
     upload_names: list[str] = []
+    total_bytes = 0
     for upload in uploads:
         if not upload.filename:
             continue
-        # skip HEIC — ffmpeg often can't decode without extras
-        if Path(upload.filename).suffix.lower() in {".heic", ".heif"}:
-            continue
+        suffix = Path(upload.filename).suffix.lower()
+        if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
+            shutil.rmtree(footage_dir, ignore_errors=True)
+            raise HTTPException(415, f"Unsupported file type: {_safe_name(upload.filename)}")
         dest = footage_dir / _safe_name(upload.filename)
-        data = await upload.read()
-        if not data:
-            continue
-        dest.write_bytes(data)
-        upload_names.append(dest.name)
-        saved += 1
+        size = 0
+        with dest.open("wb") as output:
+            while chunk := await upload.read(1024 * 1024):
+                size += len(chunk)
+                total_bytes += len(chunk)
+                if total_bytes > MAX_UPLOAD_BYTES:
+                    shutil.rmtree(footage_dir, ignore_errors=True)
+                    raise HTTPException(413, "Uploads are too large. Try fewer or shorter clips.")
+                output.write(chunk)
+        if size:
+            upload_names.append(dest.name)
+            saved += 1
 
-    if saved == 0 and not note.strip():
+    if saved == 0 and not note:
         shutil.rmtree(footage_dir, ignore_errors=True)
         raise HTTPException(400, "Empty upload.")
 
