@@ -20,6 +20,23 @@ footage/*
 render/node_modules/
 render/out/
 render/.env
+# staged per-render symlinks/copies of footage+bgm, see render/resolve-props.mjs
+render/public/
+
+# Web UI
+web/node_modules/
+web/dist/
+next-web/node_modules/
+next-web/.next/
+next-web/.env
+next-web/.env.local
+next-web/.env.*.local
+
+# local web job state
+.zlog_jobs/
+
+# regenerated trend thumbnails
+taste/trend_frames/
 
 # OS
 .DS_Store

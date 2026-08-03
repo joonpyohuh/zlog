@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #050505;
+  --fg: #f2f2f2;
+  --muted: #7a7a7a;
+  --line: #1c1c1c;
+}
+
+html,
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(1200px 700px at 50% 18%, #141414 0%, transparent 55%),
+    var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+.brand {
+  font-family: var(--font-brand), "Archivo Black", "Arial Black", sans-serif;
+  letter-spacing: -0.02em;
+}

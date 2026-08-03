@@ -15,6 +15,12 @@ dependencies = [
     "tqdm>=4.66.0",
     "pydantic>=2.0.0",
     "anthropic>=0.40.0",
+    "python-dotenv>=1.0.0",
+    "google-api-python-client>=2.0.0",
+    "google-genai>=0.2.0",
+    "fastapi>=0.141.1",
+    "uvicorn>=0.52.1",
+    "python-multipart>=0.0.32",
 ]
 
 [project.optional-dependencies]

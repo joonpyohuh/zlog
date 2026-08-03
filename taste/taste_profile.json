@@ -1,0 +1,30 @@
+{
+  "editing_rules": [
+    "Cut every 1.5-3 seconds maximum - hyper-fast transitions",
+    "Use jump cuts within same scene to compress time and add energy",
+    "Start with immediate action - no intros or fades",
+    "Include at least one 'payoff' or punchline moment (mishap, reveal, reaction)",
+    "Show process quickly: setup (2-3 clips) → action (3-4 clips) → result/reaction (1-2 clips)",
+    "Keep total duration 20-60 seconds for shorts format",
+    "Add speed ramps on mundane tasks (1.2-1.5x) to maintain momentum",
+    "Use match cuts between similar actions for rhythm",
+    "Include relatable 'struggle' or 'comedy of errors' moments",
+    "End on reaction shot, reveal, or comedic beat - no fade outs",
+    "Color: Natural/warm domestic lighting - no color grading. Slightly saturated consumer camera look. Indoor warm tones (yellows, oranges) or natural outdoor light. Authentic, unfiltered, smartphone-native colors.",
+    "Texture: Clean digital - minimal to no grain. Smartphone camera aesthetic. Slightly soft focus acceptable. Prioritize clarity over film texture.",
+    "Framing: Vertical 9:16 with subject centered. Medium-close shots dominate. Handheld, slightly shaky cam for authenticity. Blurred side panels when repurposing horizontal footage. Eye-level or slightly above. Show hands/action in frame with face.",
+    "On-screen text: Bold sans-serif, white with black stroke or solid color background. Positioned top-third or bottom-third. Emoji-heavy. Text appears for 1-2 seconds max, synced to action. Minimal animation - pop-in or simple fade."
+  ],
+  "avoid": [
+    "Slow motion (unless for comedic payoff, max 1 second)",
+    "Long establishing shots (>2 seconds)",
+    "Complex transitions (wipes, spins, etc.) - stick to cuts",
+    "Silent pauses or dead air",
+    "Overly polished or 'cinematic' pacing",
+    "Multiple storylines - one simple narrative arc only",
+    "Footage where nothing is happening",
+    "Long talking head segments"
+  ],
+  "pacing": "Frenetic and relentless. Average shot length 1.5-2.5 seconds. Constant forward momentum with no breathing room. Prioritize watch-through rate over artistic timing. Every cut must advance the micro-narrative or add comedic/emotional value.",
+  "notes": "These vlogs thrive on authenticity, relatability, and compression. The viewer should feel like they're experiencing a full 'day moment' in under a minute. Humor comes from real mishaps, not scripted gags. Mobile-first vertical framing dominates. Titles in native language with emojis signal the comedic or relatable hook immediately. | Look — palette: Natural/warm domestic lighting - no color grading. Slightly saturated consumer camera look. Indoor warm tones (yellows, oranges) or natural outdoor light. Authentic, unfiltered, smartphone-native colors.; grain: Clean digital - minimal to no grain. Smartphone camera aesthetic. Slightly soft focus acceptable. Prioritize clarity over film texture.; framing: Vertical 9:16 with subject centered. Medium-close shots dominate. Handheld, slightly shaky cam for authenticity. Blurred side panels when repurposing horizontal footage. Eye-level or slightly above. Show hands/action in frame with face.; text: Bold sans-serif, white with black stroke or solid color background. Positioned top-third or bottom-third. Emoji-heavy. Text appears for 1-2 seconds max, synced to action. Minimal animation - pop-in or simple fade."
+}
