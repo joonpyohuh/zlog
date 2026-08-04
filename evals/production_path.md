@@ -12,6 +12,7 @@ POST /api/jobs
   → write note.txt
   → beats.extract_beat_grid if .beats.json missing
   → pipeline.split.run_split
+  → pipeline.evidence.run_evidence (adaptive frames; no AI)
   → pipeline.filter.filter_scenes
   → server._ensure_candidates (promote soft stills)
   → pipeline.sheet.build_contact_sheets
@@ -35,8 +36,13 @@ No sheet / tag / select_ai on the CLI chain today.
 | File / dir | Producer | Consumer |
 |---|---|---|
 | `note.txt` | `server.py` | captions (not Claude prompt today) |
-| `segments.json` | `pipeline/split.py` | filter |
-| `frames/<segment_id>.jpg` | split | filter, sheet, review |
+| `segments.json` | `pipeline/split.py` | filter, evidence |
+| `frames/<segment_id>.jpg` | split (mid-frame, legacy) | filter, sheet, review |
+| `upload_order.json` | `server.py` (multipart order) | evidence chronology |
+| `evidence/<segment_id>#fNN.jpg` | evidence | evidence sheets / future AI |
+| `evidence_manifest.json` | evidence | future analyzer |
+| `deterministic_features.json` | evidence | future analyzer / evaluator |
+| `evidence_sheets/` + `evidence_sheet_manifest.json` | evidence | human / future AI |
 | `candidates.json` | filter (+ `_ensure_candidates`) | sheet, select_* |
 | `rejected_contact.jpg` | filter | human debug |
 | `contact_sheets/sheet_*.jpg` | sheet | select_ai, tag (unused on server) |

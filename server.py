@@ -232,18 +232,29 @@ def _friendly_error(exc: Exception) -> str:
 def _process_job(job_id: str, project: str, note: str) -> None:
     try:
         from pipeline import filter as filter_stage
-        from pipeline import select_ai
-        from pipeline import select_baseline
-        from pipeline import sheet
+        from pipeline import select_ai, select_baseline, sheet
         from pipeline import split as split_stage
         from run import _stage_grade, _stage_render
 
         footage_dir = FOOTAGE_ROOT / project
-        images = sorted(
-            p
+        from pipeline.evidence import load_upload_order
+
+        order = load_upload_order(footage_dir) or []
+        image_ext = {".jpg", ".jpeg", ".png", ".webp"}
+        by_name = {
+            p.name: p
             for p in footage_dir.iterdir()
-            if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}
-        )
+            if p.is_file() and p.suffix.lower() in image_ext
+        }
+        # Prefer multipart upload order; only then fall back to directory listing
+        # (still not alpha-sorted — Path.iterdir order / still_NN naming).
+        if order:
+            images = [by_name[n] for n in order if n in by_name]
+            for n, p in by_name.items():
+                if n not in order:
+                    images.append(p)
+        else:
+            images = list(by_name.values())
         videos = [
             p
             for p in footage_dir.iterdir()
@@ -259,6 +270,7 @@ def _process_job(job_id: str, project: str, note: str) -> None:
         _set_job(job_id, status="running", stage="prepare", duration_s=duration, generator="baseline")
 
         # Long enough source windows so cut-reuse can approach target duration.
+        # still_01..N follow upload_order (not alphabetical filename sort).
         if images:
             divisor = max(min(len(images), 4), 1)
             still_sec = max(4.0, min(16.0, duration / divisor))
@@ -282,6 +294,13 @@ def _process_job(job_id: str, project: str, note: str) -> None:
 
         _set_job(job_id, status="running", stage="split")
         split_stage.run_split(footage_dir, WORK_ROOT, force=True)
+
+        _set_job(job_id, status="running", stage="evidence")
+        from pipeline import evidence as evidence_stage
+
+        evidence_stage.run_evidence(
+            WORK_ROOT, project, footage_dir=footage_dir, force=True
+        )
 
         _set_job(job_id, status="running", stage="filter")
         filter_stage.filter_scenes(WORK_ROOT, project)
@@ -378,6 +397,7 @@ async def create_job(
     footage_dir.mkdir(parents=True, exist_ok=True)
 
     saved = 0
+    upload_names: list[str] = []
     for upload in uploads:
         if not upload.filename:
             continue
@@ -389,11 +409,18 @@ async def create_job(
         if not data:
             continue
         dest.write_bytes(data)
+        upload_names.append(dest.name)
         saved += 1
 
     if saved == 0 and not note.strip():
         shutil.rmtree(footage_dir, ignore_errors=True)
         raise HTTPException(400, "Empty upload.")
+
+    # Preserve multipart order explicitly — never recover chronology from alpha sort.
+    if upload_names:
+        from pipeline.evidence import write_upload_order
+
+        write_upload_order(footage_dir, upload_names)
 
     if saved == 0:
         slate = footage_dir / "slate.mp4"
