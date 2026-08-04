@@ -357,5 +357,19 @@ def trends() -> None:
     youtube_trends.main()
 
 
+@cli.command("inspect-edl")
+@click.argument("edl_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--json", "as_json", is_flag=True, default=False, help="emit JSON report")
+def inspect_edl_cmd(edl_path: Path, as_json: bool) -> None:
+    """Print source/segment repetition, captions, style, and generator info."""
+    from pipeline.inspect_edl import format_report, inspect_edl
+
+    report = inspect_edl(edl_path)
+    if as_json:
+        click.echo(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        click.echo(format_report(report))
+
+
 if __name__ == "__main__":
     cli()

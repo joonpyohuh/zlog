@@ -1,0 +1,75 @@
+{
+  "project": "fixture_still_modulo",
+  "version": "1.0",
+  "generator": "baseline",
+  "canvas": { "width": 1080, "height": 1920 },
+  "frame": { "aspect": "4:3", "width": 1080, "height": 810, "y_offset": 555 },
+  "aesthetic": { "lut": "ccd_cool_01.cube", "grain": 0.15, "bloom": 0.2 },
+  "audio": { "bgm_id": "demo_track", "start_sec": 0.0, "volume": 0.8 },
+  "timeline": [
+    {
+      "order": 1,
+      "segment_id": "still_01#s001",
+      "source_file": "still_01.mp4",
+      "in_sec": 0.0,
+      "out_sec": 1.5,
+      "transition": "cut"
+    },
+    {
+      "order": 2,
+      "segment_id": "still_02#s001",
+      "source_file": "still_02.mp4",
+      "in_sec": 0.0,
+      "out_sec": 1.5,
+      "transition": "cut"
+    },
+    {
+      "order": 3,
+      "segment_id": "still_01#s001",
+      "source_file": "still_01.mp4",
+      "in_sec": 1.5,
+      "out_sec": 3.0,
+      "transition": "cut"
+    },
+    {
+      "order": 4,
+      "segment_id": "still_02#s001",
+      "source_file": "still_02.mp4",
+      "in_sec": 1.5,
+      "out_sec": 3.0,
+      "transition": "cut"
+    },
+    {
+      "order": 5,
+      "segment_id": "still_01#s001",
+      "source_file": "still_01.mp4",
+      "in_sec": 3.0,
+      "out_sec": 4.5,
+      "transition": "cut"
+    },
+    {
+      "order": 6,
+      "segment_id": "still_02#s001",
+      "source_file": "still_02.mp4",
+      "in_sec": 3.0,
+      "out_sec": 4.5,
+      "transition": "cut"
+    }
+  ],
+  "captions": [
+    {
+      "segment_id": "still_01#s001",
+      "text": "커피 사기 잊지 마",
+      "style": "title",
+      "font": "display",
+      "position": "center",
+      "start_offset_sec": 0.15,
+      "end_offset_sec": 1.2
+    }
+  ],
+  "signature": {
+    "enabled": true,
+    "text": "directed by zlog",
+    "duration": 2.0
+  }
+}

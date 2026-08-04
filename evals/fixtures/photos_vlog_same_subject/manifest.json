@@ -1,0 +1,22 @@
+{
+  "fixture_id": "photos_vlog_same_subject",
+  "description": "Six stills of the same subject (warm portrait oval), used to freeze current web-pipeline regressions.",
+  "user_intent": "감성적인 유튜브 브이로그로 만들어줘",
+  "photos": [
+    "photo_01.jpg",
+    "photo_02.jpg",
+    "photo_03.jpg",
+    "photo_04.jpg",
+    "photo_05.jpg",
+    "photo_06.jpg"
+  ],
+  "expected_current_bugs": [
+    "user_intent_leaks_into_opening_caption",
+    "fixed_4x3_letterbox_only",
+    "still_modulo_repetition_to_fill_duration",
+    "order_based_ken_burns",
+    "intent_not_sent_to_claude_selection",
+    "no_semantic_evaluation_stage"
+  ],
+  "notes": "Photos are synthetic stand-ins for a repeated subject. Do not treat as production assets."
+}
