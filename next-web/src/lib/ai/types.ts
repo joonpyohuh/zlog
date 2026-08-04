@@ -22,6 +22,7 @@ export type Mood =
   | 'romantic'
   | 'energetic';
 export type StylePreset =
+  | 'clean_vlog'
   | 'y2k_4x3_letterbox'
   | 'vertical_full'
   | 'cinematic_16x9'

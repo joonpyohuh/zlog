@@ -47,6 +47,7 @@ class Mood(str, Enum):
 
 
 class StylePreset(str, Enum):
+    clean_vlog = "clean_vlog"
     y2k_4x3_letterbox = "y2k_4x3_letterbox"
     vertical_full = "vertical_full"
     cinematic_16x9 = "cinematic_16x9"
@@ -189,7 +190,7 @@ class StoryPlan(BaseModel):
     tone: Mood = Mood.calm
     target_platform: TargetPlatform = TargetPlatform.youtube
     target_duration_sec: float = Field(ge=3.0, le=120.0)
-    style_preset: StylePreset = StylePreset.y2k_4x3_letterbox
+    style_preset: StylePreset = StylePreset.clean_vlog
     hook_segment_id: str
     ending_segment_id: str
     selected_segment_ids: list[str] = Field(min_length=1)
@@ -221,7 +222,7 @@ class TimelinePlan(BaseModel):
     story_plan_version: str = "1"
     clips: list[PlannedClip] = Field(min_length=1)
     total_target_duration_sec: float = Field(ge=3.0, le=120.0)
-    style_preset: StylePreset = StylePreset.y2k_4x3_letterbox
+    style_preset: StylePreset = StylePreset.clean_vlog
 
     @model_validator(mode="after")
     def _clip_segments_unique_order(self) -> TimelinePlan:

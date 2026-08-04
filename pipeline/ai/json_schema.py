@@ -41,8 +41,9 @@ SUBMIT_ASSET_ANALYSES_TOOL: dict[str, Any] = {
 SUBMIT_STORY_PLAN_TOOL: dict[str, Any] = {
     "name": "submit_story_plan",
     "description": (
-        "Submit a story plan that references only allowed segment_ids. "
-        "Do not invent source timestamps."
+        "Submit a StoryPlan for the vlog. Schema must match StoryPlan exactly. "
+        "Use only allowed segment_ids. Never invent source timestamps or beat times. "
+        "Never copy the user edit brief into captions."
     ),
     "input_schema": StoryPlan.model_json_schema(),
 }
