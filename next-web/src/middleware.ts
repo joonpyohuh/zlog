@@ -1,7 +1,15 @@
 import {createServerClient} from '@supabase/ssr';
 import {NextResponse, type NextRequest} from 'next/server';
+import {isLocalMode} from '@/lib/local-mode.mjs';
 
 export async function middleware(request: NextRequest) {
+  if (isLocalMode()) {
+    if (request.nextUrl.pathname === '/login') {
+      return NextResponse.redirect(new URL('/studio', request.url));
+    }
+    return NextResponse.next({request});
+  }
+
   let response = NextResponse.next({request});
 
   const supabase = createServerClient(

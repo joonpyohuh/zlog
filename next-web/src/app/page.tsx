@@ -2,13 +2,12 @@ import Link from 'next/link';
 import {createClient} from '@/lib/supabase/server';
 import {userHasProAccess} from '@/lib/billing';
 import {UpgradeToProButton} from '@/components/billing/UpgradeToProButton';
+import {isLocalMode} from '@/lib/local-mode.mjs';
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const {
-    data: {user},
-  } = await supabase.auth.getUser();
-  const isPro = user ? await userHasProAccess(user.id) : false;
+  const localMode = isLocalMode();
+  const user = localMode ? null : (await (await createClient()).auth.getUser()).data.user;
+  const isPro = localMode || (user ? await userHasProAccess(user.id) : false);
 
   return (
     <main className="mx-auto flex min-h-[75vh] w-full max-w-3xl flex-col items-center justify-center px-5 pb-24 text-center">
@@ -24,22 +23,20 @@ export default async function HomePage() {
           Drop photos, video, or write a note — then generate a short film.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          {user ? (
-            isPro ? (
+          {isPro ? (
               <Link
                 href="/studio"
                 className="rounded-full bg-white px-5 py-2.5 text-sm font-medium text-black"
               >
                 Open studio
               </Link>
-            ) : (
+          ) : user ? (
               <>
                 <UpgradeToProButton label="Unlock Pro to create" />
                 <Link href="/pricing" className="text-sm text-neutral-400 underline-offset-4 hover:underline">
                   See plans
                 </Link>
               </>
-            )
           ) : (
             <Link
               href="/login?next=/"
