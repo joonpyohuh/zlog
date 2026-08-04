@@ -168,10 +168,11 @@ def build_captions_from_ai(
         if not text:
             continue
         role = sel.get("role")
-        if role == "opening" and not title_text:
+        # Soft Flow (hook/resonance) + legacy (opening/closing)
+        if role in {"opening", "hook"} and not title_text:
             title_text = text
             continue
-        if role == "closing" and not closing_text:
+        if role in {"closing", "resonance"} and not closing_text:
             closing_text = text
             continue
         ai_caps.setdefault(str(sel.get("segment_id")), text)

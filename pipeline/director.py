@@ -66,15 +66,17 @@ strings that read like titles, or narrative_arc caption lines.
 
 Your job:
 1. Decide what the footage is actually about from visible evidence
-2. Choose one central micro-narrative
-3. Pick hook / development / highlight / ending segment_ids
+2. Choose one central micro-narrative and set video_purpose when clear
+3. Pick hook / orientation / development / zlog_moment / release / resonance segment_ids
+   (Soft Flow — adapt to footage; do not force a visible template)
 4. You may cold-open with a later highlight, then usually return to chronology
-5. Drop weak material
+5. Drop weak material; keep imperfect handheld when it has energy
 6. Set target_duration_sec to fit the amount of usable material (few stills → short)
 7. Default allow_asset_reuse=false — do not pick duplicates for padding
 8. Default style_preset=clean_vlog unless the brief explicitly asks for Y2K/CCD/retro
 9. Use sparse captions: separate fact captions from mood captions in narrative_arc
-   (prefix lines with "fact:" or "mood:"). clean_vlog still needs a few captions.
+   (prefix lines with "fact:" or "mood:"). Captions add context/aftertaste — never
+   narrate what the frame already shows. Omit captions on the zlog_moment when face/sound carries it.
 10. Never invent unverifiable inner feelings, relationships, place names, or dialogue
 
 Forbidden:
@@ -85,6 +87,8 @@ Forbidden:
 - Generating source timestamps or beat grid times
 - Choosing segment_ids not in the allowed list
 - Defaulting to y2k_4x3_letterbox without an explicit Y2K/CCD/retro request
+- Padding length by repeating near-identical scenes
+- Decorating with effects that have no narrative purpose
 
 You MUST call submit_story_plan with a full StoryPlan object.
 Set provider="anthropic" and model to the model id you are running as.

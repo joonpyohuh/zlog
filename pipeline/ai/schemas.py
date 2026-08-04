@@ -72,11 +72,62 @@ class CaptionMode(str, Enum):
 
 
 class ClipRole(str, Enum):
+    """Soft Flow roles (bible v0.1) + legacy aliases for older EDLs."""
+
+    # Soft Flow
+    hook = "hook"
+    orientation = "orientation"
+    development = "development"
+    zlog_moment = "zlog_moment"
+    release = "release"
+    resonance = "resonance"
+    # Legacy (map via canonical_clip_role)
     opening = "opening"
     body = "body"
     peak = "peak"
     closing = "closing"
     bridge = "bridge"
+
+
+_LEGACY_ROLE_TO_SOFT: dict[ClipRole, ClipRole] = {
+    ClipRole.opening: ClipRole.hook,
+    ClipRole.body: ClipRole.development,
+    ClipRole.peak: ClipRole.zlog_moment,
+    ClipRole.bridge: ClipRole.release,
+    ClipRole.closing: ClipRole.resonance,
+}
+
+
+def canonical_clip_role(role: ClipRole) -> ClipRole:
+    """Normalize legacy roles onto Soft Flow names."""
+    return _LEGACY_ROLE_TO_SOFT.get(role, role)
+
+
+class VideoPurpose(str, Enum):
+    daily_vlog = "daily_vlog"
+    travel_vlog = "travel_vlog"
+    comedy_vlog = "comedy_vlog"
+    emotional_vlog = "emotional_vlog"
+    product_brand = "product_brand"
+    generic = "generic"
+
+
+class CaptionStrategy(str, Enum):
+    none = "none"
+    sparse = "sparse"
+    contextual = "contextual"
+    resonance = "resonance"
+
+
+class AudioStrategy(BaseModel):
+    preserve_source_audio: bool = True
+    bgm_duck: bool = False
+    reason: str = ""
+
+
+class EffectStrategy(BaseModel):
+    effect: str = "none"
+    reason: str = ""
 
 
 class FitMode(str, Enum):
@@ -164,7 +215,7 @@ class AssetAnalysis(BaseModel):
 
 class PlannedClip(BaseModel):
     segment_id: str
-    role: ClipRole = ClipRole.body
+    role: ClipRole = ClipRole.development
     evidence_frame_ids: list[str] = Field(default_factory=list)
     preferred_moment: PreferredMoment = PreferredMoment.middle
     target_duration_sec: float = Field(ge=0.2, le=30.0)
@@ -178,6 +229,13 @@ class PlannedClip(BaseModel):
     caption_grounding: str = ""
     overlay: str | None = None
     reuse_reason: str | None = None
+    # Creative Direction Bible §7 — short structured edit rationale
+    selection_reasons: list[str] = Field(default_factory=list)
+    cut_reason: str = ""
+    caption_strategy: CaptionStrategy = CaptionStrategy.none
+    caption_reason: str = ""
+    audio_strategy: AudioStrategy = Field(default_factory=AudioStrategy)
+    effect_strategy: EffectStrategy = Field(default_factory=EffectStrategy)
 
     @field_validator("segment_id")
     @classmethod
@@ -194,6 +252,7 @@ class StoryPlan(BaseModel):
     target_platform: TargetPlatform = TargetPlatform.youtube
     target_duration_sec: float = Field(ge=3.0, le=120.0)
     style_preset: StylePreset = StylePreset.clean_vlog
+    video_purpose: VideoPurpose = VideoPurpose.generic
     hook_segment_id: str
     ending_segment_id: str
     selected_segment_ids: list[str] = Field(min_length=1)
@@ -256,6 +315,24 @@ class RecommendedChange(BaseModel):
     detail: str = ""
 
 
+class CreativeQualityScores(BaseModel):
+    """Creative Direction Bible §9 — soft-flow / aftertaste axes."""
+
+    narrative_coherence: float = _score()
+    hook_strength: float = _score()
+    zlog_moment_strength: float = _score()
+    flow_naturalness: float = _score()
+    effect_relevance: float = _score()
+    effect_restraint: float = _score()
+    caption_restraint: float = _score()
+    natural_audio_preservation: float = _score()
+    human_imperfection_value: float = _score()
+    opening_ending_resonance: float = _score()
+    # High = structure looks like a template (bad)
+    template_visibility: float = _score(0.0)
+    emotional_aftertaste: float = _score()
+
+
 class PlanEvaluation(BaseModel):
     overall_score: float = _score()
     narrative_coherence: float = _score()
@@ -267,6 +344,7 @@ class PlanEvaluation(BaseModel):
     crop_safety: float = _score()
     visual_variety: float = _score()
     duration_suitability: float = _score()
+    creative: CreativeQualityScores = Field(default_factory=CreativeQualityScores)
     failures: list[EvaluationFailure] = Field(default_factory=list)
     recommended_changes: list[RecommendedChange] = Field(default_factory=list)
     requires_revision: bool = False

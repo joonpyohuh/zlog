@@ -37,6 +37,7 @@ from pipeline.ai.schemas import (
     StylePreset,
     TimelinePlan,
     TransitionKind,
+    canonical_clip_role,
 )
 from pipeline.director import (
     max_allowed_duration_sec,
@@ -207,15 +208,18 @@ def drop_adjacent_similar_shot(
 
 
 def role_for_index(i: int, n: int, sid: str, story: StoryPlan, peak_id: str | None) -> ClipRole:
+    """Assign Soft Flow roles (bible v0.1). Structure adapts to clip count."""
     if sid == story.hook_segment_id or i == 0:
-        return ClipRole.opening
+        return ClipRole.hook
     if sid == story.ending_segment_id or i == n - 1:
-        return ClipRole.closing
+        return ClipRole.resonance
     if peak_id and sid == peak_id:
-        return ClipRole.peak
-    if n >= 5 and i == n // 2:
-        return ClipRole.bridge
-    return ClipRole.body
+        return ClipRole.zlog_moment
+    if n >= 6 and i == 1:
+        return ClipRole.orientation
+    if n >= 5 and i == n - 2:
+        return ClipRole.release
+    return ClipRole.development
 
 
 def cut_duration_for_role(
@@ -226,27 +230,30 @@ def cut_duration_for_role(
     segment_id: str = "",
 ) -> float:
     beat = 60.0 / max(tempo_bpm, 1.0)
+    role = canonical_clip_role(role)
     base = {
-        ClipRole.opening: 3.0 * beat,
-        ClipRole.peak: 3.5 * beat,
-        ClipRole.closing: 2.5 * beat,
-        ClipRole.bridge: 2.0 * beat,
-        ClipRole.body: 2.0 * beat,
+        ClipRole.hook: 3.0 * beat,
+        ClipRole.orientation: 2.2 * beat,
+        ClipRole.zlog_moment: 3.5 * beat,
+        ClipRole.release: 2.0 * beat,
+        ClipRole.resonance: 2.5 * beat,
+        ClipRole.development: 2.0 * beat,
     }[role]
-    # Vary body lengths by segment so cuts aren't identical stopwatch ticks.
-    if role in {ClipRole.body, ClipRole.bridge}:
+    # Vary mid-flow lengths so cuts aren't identical stopwatch ticks.
+    if role in {ClipRole.development, ClipRole.release, ClipRole.orientation}:
         base = beat * (1.5 + (sum(ord(c) for c in segment_id) % 4) * 0.45)
     return float(min(max(0.45, base), max(0.45, seg_duration)))
 
 
 def motion_for_analysis(a: AssetAnalysis | None, role: ClipRole) -> tuple[MotionKind, float]:
+    role = canonical_clip_role(role)
     if a is None:
         return MotionKind.ken_burns_in, 0.3
     if a.media_type.value == "still_video" or a.motion_quality < 0.15:
         strength = 0.25 + 0.2 * a.aesthetic_value
-        if role == ClipRole.opening:
+        if role == ClipRole.hook:
             return MotionKind.ken_burns_in, min(0.55, strength + 0.1)
-        if role == ClipRole.closing:
+        if role == ClipRole.resonance:
             return MotionKind.ken_burns_out, min(0.5, strength)
         # Alternate pan by focus side
         if a.focus_x < 0.45:
@@ -316,11 +323,12 @@ def canvas_for_style(style: StylePreset) -> tuple[Canvas, Frame, Aesthetic]:
 
 
 def preferred_moment_for_role(role: ClipRole) -> PreferredMoment:
-    if role == ClipRole.opening:
+    role = canonical_clip_role(role)
+    if role == ClipRole.hook:
         return PreferredMoment.start
-    if role == ClipRole.peak:
+    if role == ClipRole.zlog_moment:
         return PreferredMoment.peak_action
-    if role == ClipRole.closing:
+    if role == ClipRole.resonance:
         return PreferredMoment.end
     return PreferredMoment.middle
 
@@ -449,13 +457,13 @@ def score_timeline(
     hook = analyses.get(story.hook_segment_id)
     scores["hook_potential"] = 8.0 * (hook.hook_potential if hook else 0.3)
 
-    roles = {c.role for c in planned}
+    roles = {canonical_clip_role(c.role) for c in planned}
     role_score = 0.0
-    if ClipRole.opening in roles:
+    if ClipRole.hook in roles:
         role_score += 3.0
-    if ClipRole.closing in roles:
+    if ClipRole.resonance in roles:
         role_score += 3.0
-    if ClipRole.peak in roles or ClipRole.body in roles:
+    if ClipRole.zlog_moment in roles or ClipRole.development in roles:
         role_score += 2.0
     scores["role_coverage"] = role_score
 
@@ -674,7 +682,9 @@ def plan_timeline(
         body_idx = [
             i
             for i, r in enumerate(role_list)
-            if r in {ClipRole.body, ClipRole.bridge} and raw_durs[i] > 0.55
+            if canonical_clip_role(r)
+            in {ClipRole.development, ClipRole.release, ClipRole.orientation}
+            and raw_durs[i] > 0.55
         ]
         if not body_idx:
             body_idx = list(range(len(raw_durs)))
@@ -695,7 +705,11 @@ def plan_timeline(
         focus_x = a.focus_x if a else 0.5
         focus_y = a.focus_y if a else 0.45
         evidence = list(a.evidence_frame_ids) if a else []
-        transition = TransitionKind.flash if role in {ClipRole.peak, ClipRole.bridge} else TransitionKind.cut
+        soft = canonical_clip_role(role)
+        # Flash is a strong effect — reserve for zlog_moment only (bible §3 budget).
+        transition = (
+            TransitionKind.flash if soft == ClipRole.zlog_moment else TransitionKind.cut
+        )
         edl_transition: str = "flash" if transition == TransitionKind.flash else "cut"
 
         planned.append(
@@ -715,6 +729,8 @@ def plan_timeline(
                 caption_grounding="",
                 overlay=None,
                 reuse_reason=None,
+                caption_strategy="none",
+                effect_strategy={"effect": "none", "reason": "default: no decorative effect"},
             )
         )
         if not aesthetic_allows_flash(story.style_preset):
@@ -744,7 +760,7 @@ def plan_timeline(
     canvas, frame, aesthetic = canvas_for_style(story.style_preset)
     if aesthetic.allow_flash:
         for clip, p in zip(timeline, planned, strict=True):
-            if p.role == ClipRole.peak and clip.order > 1:
+            if canonical_clip_role(p.role) == ClipRole.zlog_moment and clip.order > 1:
                 clip.transition = "flash"
     else:
         for clip in timeline:

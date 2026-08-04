@@ -36,7 +36,35 @@ export type TargetPlatform =
   | 'tiktok'
   | 'generic';
 export type CaptionMode = 'none' | 'sparse' | 'dense' | 'hook_only';
-export type ClipRole = 'opening' | 'body' | 'peak' | 'closing' | 'bridge';
+export type ClipRole =
+  | 'hook'
+  | 'orientation'
+  | 'development'
+  | 'zlog_moment'
+  | 'release'
+  | 'resonance'
+  | 'opening'
+  | 'body'
+  | 'peak'
+  | 'closing'
+  | 'bridge';
+export type VideoPurpose =
+  | 'daily_vlog'
+  | 'travel_vlog'
+  | 'comedy_vlog'
+  | 'emotional_vlog'
+  | 'product_brand'
+  | 'generic';
+export type CaptionStrategy = 'none' | 'sparse' | 'contextual' | 'resonance';
+export type AudioStrategy = {
+  preserve_source_audio: boolean;
+  bgm_duck: boolean;
+  reason: string;
+};
+export type EffectStrategy = {
+  effect: string;
+  reason: string;
+};
 export type FitMode =
   | 'cover'
   | 'contain'
@@ -102,6 +130,12 @@ export type PlannedClip = {
   caption_grounding: string;
   overlay: string | null;
   reuse_reason: string | null;
+  selection_reasons?: string[];
+  cut_reason?: string;
+  caption_strategy?: CaptionStrategy;
+  caption_reason?: string;
+  audio_strategy?: AudioStrategy;
+  effect_strategy?: EffectStrategy;
 };
 
 export type StoryPlan = {
@@ -111,6 +145,7 @@ export type StoryPlan = {
   target_platform: TargetPlatform;
   target_duration_sec: number;
   style_preset: StylePreset;
+  video_purpose?: VideoPurpose;
   hook_segment_id: string;
   ending_segment_id: string;
   selected_segment_ids: string[];
@@ -152,6 +187,21 @@ export type RecommendedChange = {
   detail: string;
 };
 
+export type CreativeQualityScores = {
+  narrative_coherence: number;
+  hook_strength: number;
+  zlog_moment_strength: number;
+  flow_naturalness: number;
+  effect_relevance: number;
+  effect_restraint: number;
+  caption_restraint: number;
+  natural_audio_preservation: number;
+  human_imperfection_value: number;
+  opening_ending_resonance: number;
+  template_visibility: number;
+  emotional_aftertaste: number;
+};
+
 export type PlanEvaluation = {
   overall_score: number;
   narrative_coherence: number;
@@ -163,6 +213,7 @@ export type PlanEvaluation = {
   crop_safety: number;
   visual_variety: number;
   duration_suitability: number;
+  creative?: CreativeQualityScores;
   failures: EvaluationFailure[];
   recommended_changes: RecommendedChange[];
   requires_revision: boolean;
