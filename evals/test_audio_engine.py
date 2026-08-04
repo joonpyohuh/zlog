@@ -97,7 +97,7 @@ def test_analyze_music_fields(tmp_path: Path):
     _write_wav(path, _synth_music())
     music = analyze_music(path)
     assert music["duration_sec"] >= 3.5
-    assert music["tempo_bpm"] > 0
+    assert abs(music["tempo_bpm"] - 120.0) < 5.0
     assert len(music["beat_times"]) >= 2
     assert len(music["downbeat_times"]) >= 1
     assert music["onset_strength_series"]
