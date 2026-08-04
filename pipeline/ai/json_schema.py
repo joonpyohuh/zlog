@@ -21,8 +21,10 @@ def pydantic_tool_schema(model: type) -> dict[str, Any]:
 SUBMIT_ASSET_ANALYSES_TOOL: dict[str, Any] = {
     "name": "submit_asset_analyses",
     "description": (
-        "Submit structured analyses for each provided evidence frame. "
-        "Use only the given segment_id values — never invent timestamps."
+        "Submit one AssetAnalysis per segment temporal bundle "
+        "(start/mid/end evidence frames analyzed together). "
+        "Use only the given segment_id and evidence_frame_id values — "
+        "never invent timestamps or decide the final timeline."
     ),
     "input_schema": {
         "type": "object",
