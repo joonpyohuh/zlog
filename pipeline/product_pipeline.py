@@ -12,6 +12,7 @@ Quality modes (ZLOG_QUALITY_MODE / job form):
 
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
 import time
@@ -21,6 +22,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from pipeline.ai.config import ModelConfig, QualityMode, load_model_config
+from pipeline.execution import DagExecutor, PipelineTask, TaskState
 
 StageName = Literal[
     "split",
@@ -236,7 +238,7 @@ def run_product_pipeline(
             payload.update(extra)
             on_stage(stage, payload)
 
-    def timed(stage: str, fn: Callable[[], None], *, provider: str | None = None, model: str | None = None) -> None:
+    def timed(stage: str, fn: Callable[[], Any], *, provider: str | None = None, model: str | None = None) -> None:
         nonlocal total_cost
         t0 = time.perf_counter()
         try:
@@ -265,16 +267,52 @@ def run_product_pipeline(
 
     start_idx = PRODUCT_STAGES.index(from_stage) if from_stage in PRODUCT_STAGES else 0
     todo = PRODUCT_STAGES[start_idx:]
+    execution_runs: list[dict[str, Any]] = []
 
-    # --- split ---
+    # These inputs are independent. Keep their expensive/blocking work out of the
+    # event loop and bounded before downstream stages consume either artifact.
+    prepare_tasks: list[PipelineTask] = []
     if "split" in todo:
         emit("split")
-        timed(
-            "split",
-            lambda: split_stage.run_split(footage_dir, work_root, force=force),
-            provider="ffmpeg",
-            model="pyscenedetect",
+        prepare_tasks.append(
+            PipelineTask(
+                task_id="split",
+                stage="split",
+                work=lambda: split_stage.run_split(footage_dir, work_root, force=force),
+                resource_class="ffmpeg",
+                is_cached=(lambda: (project_dir / "segments.json").exists()) if not force else None,
+            )
         )
+    beats_json = bgm_track.with_suffix(".beats.json")
+    if "plan" in todo or not use_hybrid:
+        emit("beats")
+        from pipeline.beats import extract_beat_grid
+
+        prepare_tasks.append(
+            PipelineTask(
+                task_id="beats",
+                stage="beats",
+                work=lambda: extract_beat_grid(bgm_track),
+                resource_class="cpu",
+                is_cached=beats_json.exists,
+            )
+        )
+    if prepare_tasks:
+        prepared = asyncio.run(DagExecutor(strict=True).run(prepare_tasks))
+        execution_runs.extend(run.public_dict() for run in prepared.values())
+        for task in prepare_tasks:
+            run = prepared[task.task_id]
+            stages.append(
+                StageTelemetry(
+                    stage=task.stage,
+                    provider="ffmpeg" if task.resource_class == "ffmpeg" else "librosa",
+                    model="pyscenedetect" if task.task_id == "split" else "beat_track",
+                    latency_ms=round(run.wall_ms, 2),
+                    ok=run.state in (TaskState.completed, TaskState.skipped_cached),
+                    error=run.error,
+                )
+            )
+            emit(task.stage)
 
     # --- evidence (+ deterministic features written inside) ---
     if "evidence" in todo:
@@ -504,8 +542,19 @@ def run_product_pipeline(
         stages=stages,
         estimated_cost_usd_total=round(total_cost, 6),
     )
+    payload = summary.public_dict()
+    payload["execution"] = {
+        "tasks": execution_runs,
+        "max_configured_concurrency": {
+            "cpu": DagExecutor().limits.cpu,
+            "ffmpeg": DagExecutor().limits.ffmpeg,
+            "anthropic": DagExecutor().limits.anthropic,
+            "openai": DagExecutor().limits.openai,
+            "external_video": DagExecutor().limits.external_video,
+        },
+    }
     (project_dir / "pipeline_run.json").write_text(
-        json.dumps(summary.public_dict(), indent=2, ensure_ascii=False),
+        json.dumps(payload, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
     emit("done", generator=summary.generator)

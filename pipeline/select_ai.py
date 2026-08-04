@@ -36,9 +36,9 @@ from dotenv import load_dotenv
 from pipeline import taste
 from pipeline.captions import build_captions_from_ai
 from pipeline.edl import (
+    EDL,
     Audio,
     CandidatesFile,
-    EDL,
     TimelineClip,
     validate_edl,
 )

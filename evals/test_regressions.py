@@ -141,7 +141,7 @@ def test_current_expand_reuses_six_photo_pool_with_modulo():
         _clip(i, f"still_{i:02d}#s001", f"still_{i:02d}.mp4", 0.0, 1.0)
         for i in range(1, 3)
     ]
-    beats = [i * 0.5 for i in range(0, 48)]
+    beats = [i * 0.5 for i in range(48)]
     expanded = expand_timeline_to_target(seed, pool, beats, target_duration_s=12.0, tempo_bpm=120.0)
     sources = [c.source_file for c in expanded]
     assert len(expanded) >= 6
@@ -163,7 +163,7 @@ def test_desired_no_source_repetition_when_six_stills_available():
         _clip(i, f"still_{i:02d}#s001", f"still_{i:02d}.mp4", 0.0, 1.0)
         for i in range(1, 7)
     ]
-    beats = [i * 0.5 for i in range(0, 48)]
+    beats = [i * 0.5 for i in range(48)]
     expanded = expand_timeline_to_target(seed, pool, beats, target_duration_s=12.0, tempo_bpm=120.0)
     sources = [c.source_file for c in expanded]
     assert all(sources.count(s) == 1 for s in set(sources))

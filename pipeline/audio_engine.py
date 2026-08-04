@@ -125,7 +125,7 @@ def analyze_music(track_path: Path) -> dict[str, Any]:
         )
 
     # Downsample onset series for JSON size (~5 Hz)
-    step = max(1, int(round(0.2 * sr / HOP)))
+    step = max(1, round(0.2 * sr / HOP))
     onset_series = [
         {"t": round(float(onset_times[i]), 3), "v": round(float(onset_norm[i]), 4)}
         for i in range(0, len(onset_norm), step)
@@ -261,7 +261,7 @@ def _classify_windows(
         )
 
     # Downsample RMS envelope
-    step = max(1, int(round(0.05 * sr / hop)))
+    step = max(1, round(0.05 * sr / hop))
     rms_envelope = [
         {"t": round(float(times[i]), 3), "v": round(float(rms[i]), 6)}
         for i in range(0, len(rms), step)
@@ -460,7 +460,7 @@ def build_ducking_envelope(
     dt: float = ENVELOPE_DT,
 ) -> dict[str, Any]:
     """Piecewise BGM gain curve from classified source events + attack/release."""
-    n = max(1, int(math.ceil(duration_sec / dt)) + 1)
+    n = max(1, math.ceil(duration_sec / dt) + 1)
     gain = np.ones(n, dtype=np.float64)  # relative to base_volume
 
     if not source_analysis.get("has_source_audio"):

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
-
-import pytest
+from typing import Any, ClassVar
 
 from pipeline.ai.config import ModelConfig
 from pipeline.ai.schemas import (
@@ -545,14 +543,14 @@ def test_openai_evaluate_includes_timeline_in_prompt():
             evaluator_model="gpt-5.6-luna",
         ).model_dump_json()
         usage = None
-        output = []
+        output: ClassVar[list[object]] = []
 
     class _Client:
         def __init__(self) -> None:
             self.last = None
 
             class _R:
-                def __init__(self, outer: "_Client") -> None:
+                def __init__(self, outer: _Client) -> None:
                     self._outer = outer
 
                 def create(self, **kwargs: Any) -> _Resp:

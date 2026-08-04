@@ -10,7 +10,7 @@ only here — the LLM never emits a number that ends up as a timestamp.
 
 from __future__ import annotations
 
-from pipeline.edl import Caption, CandidateScene, TimelineClip
+from pipeline.edl import CandidateScene, Caption, TimelineClip
 
 MAX_CAPTION_CHARS = 24
 

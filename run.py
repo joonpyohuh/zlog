@@ -28,10 +28,8 @@ import click
 
 from pipeline import filter as filter_stage
 from pipeline import grade as grade_stage
-from pipeline import select_baseline
-from pipeline import split
-from pipeline import taste
-from pipeline.edl import CandidatesFile, EDL
+from pipeline import select_baseline, split, taste
+from pipeline.edl import EDL, CandidatesFile
 
 REPO_ROOT = Path(__file__).resolve().parent
 RENDER_DIR = REPO_ROOT / "render"
@@ -95,7 +93,7 @@ def _run_subprocess(
     # OS locale's default codec can't decode — force utf-8 explicitly.
     if on_line is None:
         result = subprocess.run(
-            cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace"
+            cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
         )
         if result.returncode != 0:
             stdout_tail = (result.stdout or "")[-1200:]
@@ -312,7 +310,7 @@ def pipeline(
             on_stage=on_stage,
             use_hybrid=not baseline and bool(os.getenv("ANTHROPIC_API_KEY")),
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - CLI boundary reports pipeline failures
         click.echo(f"\nFAILED: {exc}", err=True)
         sys.exit(1)
 
@@ -325,8 +323,8 @@ def _open_image(path: Path) -> None:
     try:
         import os
 
-        os.startfile(path)  # noqa: S606 — local CLI tool, opening the OS's own default viewer
-    except Exception as exc:
+        os.startfile(path)
+    except Exception as exc:  # noqa: BLE001 - opening the platform viewer is best-effort
         click.echo(f"  (couldn't open {path} automatically: {exc})")
 
 
@@ -376,7 +374,7 @@ def review(project_dir: Path) -> None:
             reason = click.prompt("  reason", default="", show_default=False)
             _record_example(project, candidate.segment_id, frame_abs, decision, reason)
             recorded += 1
-            click.echo(f"  recorded -> taste/examples.jsonl")
+            click.echo("  recorded -> taste/examples.jsonl")
 
     click.echo(f"\nrecorded {recorded} judgment(s) -> {taste.EXAMPLES_PATH}")
 

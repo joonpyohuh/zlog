@@ -25,13 +25,13 @@ import numpy as np
 
 from pipeline.captions import build_captions
 from pipeline.edl import (
-    Aesthetic,
-    Audio,
-    Canvas,
-    CandidatesFile,
-    CandidateScene,
     DURATION_TOLERANCE_S,
     EDL,
+    Aesthetic,
+    Audio,
+    CandidateScene,
+    CandidatesFile,
+    Canvas,
     Frame,
     Signature,
     TimelineClip,

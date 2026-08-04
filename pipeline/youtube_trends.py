@@ -9,7 +9,7 @@ import base64
 import json
 import os
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
 
@@ -30,7 +30,7 @@ def fetch_youtube_trends(api_key: str, max_results: int = 10) -> list[dict]:
     youtube = build("youtube", "v3", developerKey=api_key)
     queries = ["vlog", "브이로그", "day in my life vlog"]
     # Recent window: last ~180 days from "today" in repo clock
-    published_after = datetime(2025, 1, 1, tzinfo=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    published_after = datetime(2025, 1, 1, tzinfo=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     all_videos: list[dict] = []
     seen: set[str] = set()
 
@@ -104,7 +104,7 @@ def _download_thumbnails(videos: list[dict], limit: int = MAX_THUMBS) -> list[Pa
                 dest.write_bytes(resp.read())
             paths.append(dest)
             video["thumbnail_path"] = str(dest.relative_to(REPO_ROOT)).replace("\\", "/")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - a bad remote thumbnail is skippable
             print(f"  skip thumb {vid}: {exc}")
     return paths
 
@@ -164,12 +164,9 @@ def analyze_trends_and_generate_taste(videos: list[dict], thumb_paths: list[Path
     text = "".join(
         block.text for block in response.content if getattr(block, "type", None) == "text"
     ).strip()
-    if text.startswith("```json"):
-        text = text[7:]
-    if text.startswith("```"):
-        text = text[3:]
-    if text.endswith("```"):
-        text = text[:-3]
+    text = text.removeprefix("```json")
+    text = text.removeprefix("```")
+    text = text.removesuffix("```")
     profile = json.loads(text.strip())
     # keep schema compatible with TasteProfile (extra look is ok if we strip for pydantic
     # — taste.py TasteProfile doesn't have look; store look inside notes if needed)
@@ -223,7 +220,7 @@ def main() -> None:
     try:
         videos = fetch_youtube_trends(youtube_api_key)
         print(f"Fetched {len(videos)} videos.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - CLI reports remote API failures to the user
         print(f"Failed to fetch from YouTube: {e}")
         return
 
@@ -234,7 +231,7 @@ def main() -> None:
     print("Analyzing trends + look with Claude vision...")
     try:
         taste_profile = analyze_trends_and_generate_taste(videos, thumbs)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - CLI reports model failures to the user
         print(f"Failed to analyze trends: {e}")
         return
 

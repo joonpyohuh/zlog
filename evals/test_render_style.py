@@ -6,9 +6,16 @@ import json
 import re
 from pathlib import Path
 
-from pipeline.ai.schemas import FitMode, StylePreset
+from pipeline.ai.schemas import (
+    AssetAnalysis,
+    FitMode,
+    MediaType,
+    Mood,
+    SceneKind,
+    ShotType,
+    StylePreset,
+)
 from pipeline.director import style_from_brief
-from pipeline.ai.schemas import AssetAnalysis, MediaType, Mood, SceneKind, ShotType
 from pipeline.edl import Caption
 from pipeline.plan_timeline import canvas_for_style, fit_mode_for_analysis
 
@@ -59,7 +66,7 @@ def test_caption_requires_grounding_and_blocks_brief():
 
 
 def test_python_canvas_clean_vs_y2k():
-    canvas, frame, aes = canvas_for_style(StylePreset.clean_vlog)
+    _canvas, frame, aes = canvas_for_style(StylePreset.clean_vlog)
     assert frame.aspect == "9:16"
     assert frame.y_offset == 0
     assert aes.camcorder_osd is False

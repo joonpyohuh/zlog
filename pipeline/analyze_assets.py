@@ -22,6 +22,7 @@ import asyncio
 import html
 import json
 import os
+import random
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -42,6 +43,7 @@ from pipeline.evidence import (
     EvidenceSegment,
     SegmentFeatures,
 )
+from pipeline.execution import DagExecutor, PipelineTask
 
 MAX_TOKENS = 4096
 BATCH_SIZE = 4
@@ -369,9 +371,9 @@ async def _anthropic_analyze_batch(
             model=model,
             max_tokens=MAX_TOKENS,
             system=SYSTEM_RULES,
-            tools=[SUBMIT_ASSET_ANALYSES_TOOL],
+            tools=[SUBMIT_ASSET_ANALYSES_TOOL],  # type: ignore[arg-type] - schema is SDK-compatible JSON
             tool_choice={"type": "tool", "name": "submit_asset_analyses"},
-            messages=[{"role": "user", "content": _bundle_user_content(bundles)}],
+            messages=[{"role": "user", "content": _bundle_user_content(bundles)}],  # type: ignore[arg-type] - multimodal JSON blocks
         )
     except Exception as exc:
         usage.ok = False
@@ -391,7 +393,7 @@ async def _anthropic_analyze_batch(
     tool_input: dict[str, Any] | None = None
     for block in response.content:
         if getattr(block, "type", None) == "tool_use" and getattr(block, "name", None) == "submit_asset_analyses":
-            tool_input = dict(block.input)
+            tool_input = dict(getattr(block, "input", {}))
             break
     if tool_input is None:
         usage.ok = False
@@ -401,6 +403,53 @@ async def _anthropic_analyze_batch(
 
     record_usage(usage)
     return list(tool_input.get("analyses") or []), usage
+
+
+async def _anthropic_analyze_with_retry(
+    client: anthropic.AsyncAnthropic,
+    *,
+    model: str,
+    bundles: list[SegmentBundle],
+    operation: str,
+) -> tuple[list[dict[str, Any]], CallUsage]:
+    """Retry transient provider failures with jitter; the executor caps callers."""
+    retries = max(0, int(os.getenv("ZLOG_ANALYSIS_MAX_RETRIES", "2")))
+    for attempt in range(retries + 1):
+        try:
+            return await _anthropic_analyze_batch(
+                client,
+                model=model,
+                bundles=bundles,
+                operation=operation,
+                retry_count=attempt,
+            )
+        except Exception:
+            if attempt == retries:
+                raise
+            await asyncio.sleep((0.2 * (2**attempt)) + random.uniform(0, 0.1))
+    raise AssertionError("unreachable")
+
+
+async def _run_bounded_batches(
+    batches: list[list[SegmentBundle]],
+    operation: str,
+    work: Any,
+) -> None:
+    """Run batches under ZLOG_CONCURRENCY_ANTHROPIC, never an unbounded gather."""
+    runs = await DagExecutor().run(
+        [
+            PipelineTask(
+                task_id=f"{operation}:{index}",
+                stage=operation,
+                work=lambda batch=batch: work(batch),
+                resource_class="anthropic",
+            )
+            for index, batch in enumerate(batches)
+        ]
+    )
+    failed = [run for run in runs.values() if run.error]
+    if failed:
+        raise RuntimeError(f"{operation} batch scheduling failed: {failed[0].error}")
 
 
 def _openai_fallback_analyze(
@@ -458,7 +507,7 @@ async def _run_haiku_pass(
 
     async def one_batch(batch: list[SegmentBundle]) -> None:
         try:
-            raw, usage = await _anthropic_analyze_batch(
+            raw, usage = await _anthropic_analyze_with_retry(
                 client, model=model, bundles=batch, operation="analyze_assets_haiku"
             )
             usages.append(usage)
@@ -517,7 +566,7 @@ async def _run_haiku_pass(
                     b.segment.segment_id, ["api_failure"]
                 )
 
-    await asyncio.gather(*[one_batch(batch) for batch in _chunk(bundles, BATCH_SIZE)])
+    await _run_bounded_batches(_chunk(bundles, BATCH_SIZE), "analyze_assets_haiku", one_batch)
     # Mark missing (never returned) as validation failure for escalation.
     for sid in by_id:
         if sid not in decisions:
@@ -537,7 +586,7 @@ async def _run_sonnet_pass(
 
     async def one_batch(batch: list[SegmentBundle]) -> None:
         try:
-            raw, usage = await _anthropic_analyze_batch(
+            raw, usage = await _anthropic_analyze_with_retry(
                 client, model=model, bundles=batch, operation="analyze_assets_sonnet"
             )
             usages.append(usage)
@@ -565,7 +614,7 @@ async def _run_sonnet_pass(
                 )
             )
 
-    await asyncio.gather(*[one_batch(batch) for batch in _chunk(bundles, BATCH_SIZE)])
+    await _run_bounded_batches(_chunk(bundles, BATCH_SIZE), "analyze_assets_sonnet", one_batch)
     return results, usages
 
 
@@ -811,4 +860,4 @@ def main(work_dir: Path, project: str, force: bool) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main()  # type: ignore[call-arg] - Click replaces the callback with a command object

@@ -303,7 +303,7 @@ def code_evaluate_plan(
         )
 
     # 10) duration vs unique material
-    n_unique = len(set(c.segment_id for c in clips)) if clips else len(set(story.selected_segment_ids))
+    n_unique = len({c.segment_id for c in clips}) if clips else len(set(story.selected_segment_ids))
     cap = max_allowed_duration_sec(max(1, n_unique))
     dur = (
         timeline.total_target_duration_sec
@@ -436,9 +436,7 @@ def judgments_conflict(
         return True
     if code_bad and not luna_bad and luna.overall_score >= 0.85:
         return True
-    if luna_bad and not code_bad and luna.overall_score <= 0.35:
-        return True
-    return False
+    return luna_bad and not code_bad and luna.overall_score <= 0.35
 
 
 def should_call_sol(
@@ -456,7 +454,7 @@ def should_call_sol(
     if not claude_revision_failed:
         return False
     # Conflict is an extra gate when Claude already failed once.
-    return True if judgments_conflict_flag or claude_revision_failed else False
+    return bool(judgments_conflict_flag or claude_revision_failed)
 
 
 def _write_story(project_dir: Path, project: str, plan: StoryPlan, *, source: str) -> None:

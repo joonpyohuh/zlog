@@ -28,7 +28,7 @@ import anthropic
 import click
 from dotenv import load_dotenv
 
-from pipeline.edl import CandidatesFile, CandidateScene, Tags
+from pipeline.edl import CandidateScene, CandidatesFile, Tags
 
 MODEL = "claude-haiku-4-5-20251001"
 MAX_TOKENS = 1024

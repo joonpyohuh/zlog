@@ -283,13 +283,6 @@ def _process_job(
             (project_dir / "note.txt").write_text(note, encoding="utf-8")
             (footage_dir / "note.txt").write_text(note, encoding="utf-8")
 
-        beats_json = bgm.with_suffix(".beats.json")
-        if not beats_json.exists():
-            from pipeline import beats
-
-            _set_job(job_id, status="running", stage="beats")
-            beats.extract_beat_grid(bgm)
-
         # Soft-promote stills after filter (inside product pipeline filter stage)
         def _on_stage(stage: str, payload: dict) -> None:
             fields: dict = {
@@ -359,7 +352,7 @@ def _process_job(
 @app.post("/api/jobs")
 async def create_job(
     note: str = Form(""),
-    files: list[UploadFile] | None = File(None),
+    files: list[UploadFile] | None = File(None),  # noqa: B008 - FastAPI request marker
     quality_mode: str = Form("balanced"),
     dev_mode: str = Form("0"),
 ):

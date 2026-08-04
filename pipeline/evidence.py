@@ -171,7 +171,7 @@ def read_capture_time(path: Path) -> tuple[str | None, bool]:
 
     try:
         exif = img.getexif()
-    except Exception:
+    except Exception:  # noqa: BLE001 - malformed EXIF is not trusted chronology data
         return None, False
     if not exif:
         return None, False
@@ -189,7 +189,7 @@ def read_capture_time(path: Path) -> tuple[str | None, bool]:
             val = ifd.get(tag_id)
             if isinstance(val, str) and val.strip():
                 candidates.append(val)
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 - optional EXIF IFD is best-effort
         pass
 
     for raw in candidates:
@@ -284,7 +284,7 @@ def _unique_frame_indices(start_f: int, end_f: int, rels: tuple[float, ...]) -> 
     out: list[tuple[int, float]] = []
     seen: set[int] = set()
     for rel in rels:
-        f = start_f + int(round(span * rel))
+        f = start_f + round(span * rel)
         f = min(max(f, start_f), end_f - 1)
         if f not in seen:
             seen.add(f)
@@ -299,7 +299,7 @@ def _probe_indices(start_f: int, end_f: int, count: int = PROBE_COUNT) -> list[i
     n = min(count, span)
     if n == 1:
         return [start_f]
-    return [start_f + int(round(i * (span - 1) / (n - 1))) for i in range(n)]
+    return [start_f + round(i * (span - 1) / (n - 1)) for i in range(n)]
 
 
 def _read_frame(cap: cv2.VideoCapture, frame_idx: int) -> np.ndarray:
@@ -355,7 +355,7 @@ def _audio_features(video_path: Path, start_sec: float, duration: float) -> tupl
                 offset=max(0.0, start_sec),
                 duration=duration,
             )
-    except Exception:
+    except Exception:  # noqa: BLE001 - clips without audio are valid inputs
         return 0.0, 0.0
     if y.size == 0:
         return 0.0, 0.0
@@ -364,7 +364,7 @@ def _audio_features(video_path: Path, start_sec: float, duration: float) -> tupl
         onset_env = librosa.onset.onset_strength(y=y, sr=sr)
         onsets = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr, units="time")
         density = float(len(np.atleast_1d(onsets)) / duration)
-    except Exception:
+    except Exception:  # noqa: BLE001 - onset analysis is optional deterministic metadata
         density = 0.0
     return max(0.0, rms), max(0.0, density)
 
@@ -424,8 +424,8 @@ def extract_segment_evidence(
     fps: float,
     out_dir: Path,
 ) -> tuple[list[EvidenceFrame], SegmentFeatures]:
-    start_f = int(round(scene.start_sec * fps))
-    end_f = int(round(scene.end_sec * fps))
+    start_f = round(scene.start_sec * fps)
+    end_f = round(scene.end_sec * fps)
     if end_f <= start_f:
         end_f = start_f + 1
 
