@@ -1,25 +1,15 @@
 """zlog orchestrator CLI.
 
-    python run.py footage/trip_01 --bgm y2k_synth_01 --duration 15
+    python run.py footage/trip_01 --bgm demo_track --duration 15
+    python run.py footage/trip_01 --bgm demo_track --quality-mode premium
     python run.py review work/trip_01
 
-The first form (no subcommand keyword) chains split -> filter -> select
-(baseline) -> render (Remotion) -> grade (ffmpeg LUT), writing
-work/<project>/final.mp4. Every stage is also runnable on its own via
-`python -m pipeline.<stage>` (see CLAUDE.md for each stage's I/O
-contract) — this file adds no logic beyond wiring calls in order,
-skip-if-exists bookkeeping, and error/timing reporting.
+Default chain (hybrid product pipeline):
+  split → evidence → filter → sheet → analyze → director → plan →
+  evaluate → render → grade → audio → final.mp4
 
-`review` walks the selected and dropped candidates from a finished
-project one at a time and records keep/drop + reason into
-taste/examples.jsonl (see pipeline/taste.py) for select_ai.py to draw on
-later — this is the only place a human's own judgment enters the
-pipeline's data, so it never touches segments.json/candidates.json.
-
-`sheet.py`/`tag.py`/`select_ai.py` aren't part of the automatic chain:
-sheet.py (contact sheets) is still a skeleton, so nothing downstream of it
-can run unattended yet. Add a "tag"/"select-ai" path back in once
---use-ai exists and sheet.py actually produces sheets.
+`--baseline` forces the legacy select_baseline cut path.
+Every stage is also runnable via `python -m pipeline.<stage>`.
 """
 
 from __future__ import annotations
@@ -46,7 +36,19 @@ from pipeline.edl import CandidatesFile, EDL
 REPO_ROOT = Path(__file__).resolve().parent
 RENDER_DIR = REPO_ROOT / "render"
 
-STAGES = ["split", "filter", "select", "render", "grade"]
+STAGES = [
+    "split",
+    "evidence",
+    "filter",
+    "sheet",
+    "analyze",
+    "director",
+    "plan",
+    "evaluate",
+    "render",
+    "grade",
+    "audio",
+]
 
 
 class DefaultGroup(click.Group):
@@ -256,6 +258,14 @@ def cli() -> None:
     default=STAGES[0],
     help="restart from this stage, treating earlier stages' outputs as already on disk",
 )
+@click.option(
+    "--quality-mode",
+    type=click.Choice(["economy", "balanced", "premium", "max"]),
+    default=None,
+    help="economy|balanced|premium (default: ZLOG_QUALITY_MODE or balanced)",
+)
+@click.option("--baseline", is_flag=True, default=False, help="force select_baseline (no hybrid AI)")
+@click.option("--intent", default=None, help="editing brief (else note.txt)")
 def pipeline(
     footage_dir: Path,
     bgm_name: str,
@@ -263,37 +273,51 @@ def pipeline(
     work_root: Path,
     force: bool,
     from_stage: str,
+    quality_mode: str | None,
+    baseline: bool,
+    intent: str | None,
 ) -> None:
-    """Run split -> filter -> select -> render -> grade for footage_dir."""
+    """Run the hybrid product pipeline for footage_dir."""
+    from pipeline.product_pipeline import run_product_pipeline
+
     project = footage_dir.name
     project_dir = work_root / project
+    project_dir.mkdir(parents=True, exist_ok=True)
     bgm_track = _resolve_bgm(bgm_name)
+    mode = quality_mode or os.getenv("ZLOG_QUALITY_MODE", "balanced")
 
-    stages_to_run = STAGES[STAGES.index(from_stage):]
     click.echo(f"project: {project}")
-    click.echo(f"stages: {', '.join(stages_to_run)}")
-
-    runners = {
-        "split": lambda: _stage_split(project_dir, footage_dir, work_root, force),
-        "filter": lambda: _stage_filter(project_dir, project, work_root, force),
-        "select": lambda: _stage_select(project_dir, project, work_root, bgm_track, target_duration_s, force),
-        "render": lambda: _stage_render(project_dir, force),
-        "grade": lambda: _stage_grade(project_dir, force),
-    }
+    click.echo(f"quality_mode: {mode}  hybrid={not baseline}")
+    click.echo(f"from: {from_stage}")
 
     total_start = time.monotonic()
-    for stage in stages_to_run:
+
+    def on_stage(stage: str, payload: dict) -> None:
         click.echo(f"\n=== {stage} ===")
-        stage_start = time.monotonic()
-        try:
-            runners[stage]()
-        except Exception as exc:
-            elapsed = time.monotonic() - stage_start
-            click.echo(f"\nFAILED at stage '{stage}' after {elapsed:.1f}s: {exc}", err=True)
-            sys.exit(1)
-        click.echo(f"  done in {time.monotonic() - stage_start:.1f}s")
+        cost = payload.get("estimated_cost_usd_total")
+        if cost is not None:
+            click.echo(f"  cost≈${float(cost):.4f}")
+
+    try:
+        result = run_product_pipeline(
+            work_root=work_root,
+            footage_dir=footage_dir,
+            project=project,
+            bgm_track=bgm_track,
+            target_duration_s=target_duration_s,
+            quality_mode=mode,
+            force=force,
+            from_stage=from_stage,
+            user_intent=intent,
+            on_stage=on_stage,
+            use_hybrid=not baseline and bool(os.getenv("ANTHROPIC_API_KEY")),
+        )
+    except Exception as exc:
+        click.echo(f"\nFAILED: {exc}", err=True)
+        sys.exit(1)
 
     click.echo(f"\ntotal: {time.monotonic() - total_start:.1f}s")
+    click.echo(f"generator={result.generator} cost≈${result.estimated_cost_usd_total:.4f}")
     click.echo(f"wrote {project_dir / 'final.mp4'}")
 
 

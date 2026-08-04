@@ -196,6 +196,21 @@ def analyze_trends_and_generate_taste(videos: list[dict], thumb_paths: list[Path
 
 
 def main() -> None:
+    """PROMPT 9: refuse automatic overwrite of taste/taste_profile.json.
+
+    Opt in only with ZLOG_ALLOW_YOUTUBE_TASTE_OVERWRITE=1 (founder experiments).
+    """
+    if os.environ.get("ZLOG_ALLOW_YOUTUBE_TASTE_OVERWRITE", "").strip() not in (
+        "1",
+        "true",
+        "yes",
+    ):
+        print(
+            "youtube_trends: taste overwrite disabled "
+            "(set ZLOG_ALLOW_YOUTUBE_TASTE_OVERWRITE=1 to enable)."
+        )
+        return
+
     youtube_api_key = os.environ.get("YOUTUBE_API_KEY")
     if not youtube_api_key:
         print("Error: YOUTUBE_API_KEY not found in environment.")
@@ -227,7 +242,6 @@ def main() -> None:
     payload = json.dumps(taste_profile, ensure_ascii=False, indent=2)
     TASTE_PATH.write_text(payload, encoding="utf-8")
     print(f"Successfully updated {TASTE_PATH}")
-    # Windows consoles often can't print em-dash / emoji — avoid crashing the job.
     try:
         print(payload)
     except UnicodeEncodeError:

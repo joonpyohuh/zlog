@@ -293,6 +293,16 @@
   background: var(--surface-hover);
 }
 
+.quality-select {
+  align-self: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: inherit;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 .composer {
   display: flex;
   align-items: flex-end;

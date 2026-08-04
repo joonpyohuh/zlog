@@ -1,9 +1,9 @@
-"""Local API for the zlog web UI.
+"""Local API for the zlog web UI / Next.js Studio.
 
     uv run uvicorn server:app --host 127.0.0.1 --port 8000
 
-Accepts photo/video/text, stages footage/<job_id>/, runs the pipeline
-(prefer AI select when ANTHROPIC_API_KEY is set), serves final.mp4.
+Accepts photo/video/text, stages footage/<job_id>/, runs the hybrid product
+pipeline (analyze → director → plan → evaluate → Remotion → audio → final).
 """
 
 from __future__ import annotations
@@ -58,39 +58,22 @@ def _mark_stale_jobs() -> None:
             path.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _seconds_until_local_midnight() -> float:
-    from datetime import datetime, timedelta
-
-    now = datetime.now()
-    tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=5, microsecond=0)
-    return max(5.0, (tomorrow - now).total_seconds())
-
-
-def _trends_midnight_loop() -> None:
-    """Run youtube_trends once a day at local midnight."""
-    while True:
-        time.sleep(_seconds_until_local_midnight())
-        try:
-            from pipeline import youtube_trends
-
-            print("[trends] midnight run starting…")
-            youtube_trends.main()
-            print("[trends] midnight run finished")
-        except Exception as exc:
-            print(f"[trends] midnight run failed: {exc}")
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # YouTube thumbnail → taste_profile overwrite is disabled (PROMPT 9).
     _mark_stale_jobs()
-    threading.Thread(target=_trends_midnight_loop, daemon=True).start()
     yield
 
 
 app = FastAPI(title="zlog", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_origins=[
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -229,16 +212,19 @@ def _friendly_error(exc: Exception) -> str:
     return msg
 
 
-def _process_job(job_id: str, project: str, note: str) -> None:
+def _process_job(
+    job_id: str,
+    project: str,
+    note: str,
+    *,
+    quality_mode: str = "balanced",
+    dev_mode: bool = False,
+) -> None:
     try:
-        from pipeline import filter as filter_stage
-        from pipeline import select_ai, select_baseline, sheet
-        from pipeline import split as split_stage
-        from run import _stage_grade, _stage_render
+        from pipeline.evidence import load_upload_order
+        from pipeline.product_pipeline import run_product_pipeline
 
         footage_dir = FOOTAGE_ROOT / project
-        from pipeline.evidence import load_upload_order
-
         order = load_upload_order(footage_dir) or []
         image_ext = {".jpg", ".jpeg", ".png", ".webp"}
         by_name = {
@@ -246,8 +232,6 @@ def _process_job(job_id: str, project: str, note: str) -> None:
             for p in footage_dir.iterdir()
             if p.is_file() and p.suffix.lower() in image_ext
         }
-        # Prefer multipart upload order; only then fall back to directory listing
-        # (still not alpha-sorted — Path.iterdir order / still_NN naming).
         if order:
             images = [by_name[n] for n in order if n in by_name]
             for n, p in by_name.items():
@@ -265,12 +249,21 @@ def _process_job(job_id: str, project: str, note: str) -> None:
 
         duration = _target_duration(len(images) + len(videos))
         bgm = _resolve_bgm()
-        use_ai = bool(os.getenv("ANTHROPIC_API_KEY"))
+        use_hybrid = bool(os.getenv("ANTHROPIC_API_KEY"))
+        mode = (quality_mode or "balanced").strip().lower()
+        if mode not in ("economy", "balanced", "premium", "max"):
+            mode = "balanced"
 
-        _set_job(job_id, status="running", stage="prepare", duration_s=duration, generator="baseline")
+        _set_job(
+            job_id,
+            status="running",
+            stage="prepare",
+            duration_s=duration,
+            generator="hybrid" if use_hybrid else "baseline",
+            quality_mode=mode,
+            dev_mode=bool(dev_mode),
+        )
 
-        # Long enough source windows so cut-reuse can approach target duration.
-        # still_01..N follow upload_order (not alphabetical filename sort).
         if images:
             divisor = max(min(len(images), 4), 1)
             still_sec = max(4.0, min(16.0, duration / divisor))
@@ -292,50 +285,21 @@ def _process_job(job_id: str, project: str, note: str) -> None:
             _set_job(job_id, status="running", stage="beats")
             beats.extract_beat_grid(bgm)
 
-        _set_job(job_id, status="running", stage="split")
-        split_stage.run_split(footage_dir, WORK_ROOT, force=True)
-
-        _set_job(job_id, status="running", stage="evidence")
-        from pipeline import evidence as evidence_stage
-
-        evidence_stage.run_evidence(
-            WORK_ROOT, project, footage_dir=footage_dir, force=True
-        )
-
-        _set_job(job_id, status="running", stage="filter")
-        filter_stage.filter_scenes(WORK_ROOT, project)
-        _ensure_candidates(project)
-
-        _set_job(job_id, status="running", stage="sheet")
-        sheet.build_contact_sheets(WORK_ROOT, project)
-
-        selected_with_ai = False
-        if use_ai:
-            try:
-                _set_job(job_id, status="running", stage="select_ai", generator="ai")
-                select_ai.select_ai(WORK_ROOT, project, bgm, duration)
-                selected_with_ai = True
-            except Exception as ai_exc:
-                _set_job(
-                    job_id,
-                    status="running",
-                    stage="select",
-                    generator="baseline",
-                    ai_fallback=str(ai_exc)[:240],
-                )
-                select_baseline.select_baseline(WORK_ROOT, project, bgm, duration)
-        else:
-            _set_job(job_id, status="running", stage="select", generator="baseline")
-            select_baseline.select_baseline(WORK_ROOT, project, bgm, duration)
-
-        _set_job(
-            job_id,
-            status="running",
-            stage="render",
-            generator="ai" if selected_with_ai else "baseline",
-            progress_pct=0,
-            progress="0/?",
-        )
+        # Soft-promote stills after filter (inside product pipeline filter stage)
+        def _on_stage(stage: str, payload: dict) -> None:
+            fields: dict = {
+                "status": "running",
+                "stage": stage,
+                "generator": payload.get("generator") or "hybrid",
+                "quality_mode": mode,
+                "estimated_cost_usd_total": payload.get("estimated_cost_usd_total"),
+            }
+            if stage == "render":
+                fields["progress_pct"] = payload.get("progress_pct", 0)
+            # Dev telemetry: stage/provider/model/tokens/cost — never prompts/keys
+            if dev_mode:
+                fields["telemetry"] = payload.get("telemetry") or []
+            _set_job(job_id, **fields)
 
         last_pct = {"v": -1}
 
@@ -343,41 +307,46 @@ def _process_job(job_id: str, project: str, note: str) -> None:
             if total <= 0:
                 return
             pct = min(99, int(100 * done / total))
-            # Avoid rewriting job JSON every frame.
             if pct == last_pct["v"] or (pct < 99 and pct - last_pct["v"] < 2):
                 return
             last_pct["v"] = pct
-            _set_job(
-                job_id,
-                status="running",
-                stage="render",
-                progress_pct=pct,
-                progress=f"{done}/{total}",
-            )
+            fields = {
+                "status": "running",
+                "stage": "render",
+                "progress_pct": pct,
+                "progress": f"{done}/{total}",
+            }
+            _set_job(job_id, **fields)
 
-        _stage_render(
-            project_dir,
+        result = run_product_pipeline(
+            work_root=WORK_ROOT,
+            footage_dir=footage_dir,
+            project=project,
+            bgm_track=bgm,
+            target_duration_s=duration,
+            quality_mode=mode,
             force=True,
-            progress=_on_render_progress,
-            scale=WEB_RENDER_SCALE,
-            concurrency=WEB_RENDER_CONCURRENCY,
+            user_intent=note,
+            on_stage=_on_stage,
+            render_progress=_on_render_progress,
+            render_scale=WEB_RENDER_SCALE,
+            render_concurrency=WEB_RENDER_CONCURRENCY,
+            use_hybrid=use_hybrid,
         )
 
-        _set_job(job_id, status="running", stage="grade", progress_pct=100)
-        _stage_grade(project_dir, force=True)
-
-        final = project_dir / "final.mp4"
-        if not final.exists():
-            raise RuntimeError("pipeline finished without final.mp4")
-
-        _set_job(
-            job_id,
-            status="done",
-            stage="done",
-            video_url=f"/api/jobs/{job_id}/video",
-            finished_at=time.time(),
-            generator="ai" if selected_with_ai else "baseline",
-        )
+        done_fields = {
+            "status": "done",
+            "stage": "done",
+            "video_url": f"/api/jobs/{job_id}/video",
+            "finished_at": time.time(),
+            "generator": result.generator,
+            "quality_mode": result.quality_mode,
+            "estimated_cost_usd_total": result.estimated_cost_usd_total,
+            "progress_pct": 100,
+        }
+        if dev_mode:
+            done_fields["telemetry"] = [s.public_dict() for s in result.stages]
+        _set_job(job_id, **done_fields)
     except Exception as exc:
         _set_job(job_id, status="error", error=_friendly_error(exc), detail=str(exc)[:1200])
 
@@ -386,6 +355,8 @@ def _process_job(job_id: str, project: str, note: str) -> None:
 async def create_job(
     note: str = Form(""),
     files: list[UploadFile] | None = File(None),
+    quality_mode: str = Form("balanced"),
+    dev_mode: str = Form("0"),
 ):
     uploads = files or []
     if not note.strip() and not uploads:
@@ -443,19 +414,32 @@ async def create_job(
         )
 
     duration = _target_duration(saved)
+    mode = (quality_mode or "balanced").strip().lower()
+    if mode not in ("economy", "balanced", "premium", "max"):
+        mode = "balanced"
+    dev = str(dev_mode).strip().lower() in ("1", "true", "yes", "on")
     _set_job(
         job_id,
         status="queued",
         project=project,
         stage="queued",
         duration_s=duration,
+        quality_mode=mode,
+        dev_mode=dev,
     )
-    threading.Thread(target=_process_job, args=(job_id, project, note), daemon=True).start()
+    threading.Thread(
+        target=_process_job,
+        args=(job_id, project, note),
+        kwargs={"quality_mode": mode, "dev_mode": dev},
+        daemon=True,
+    ).start()
     return {
         "id": job_id,
         "status": "queued",
         "project": project,
         "duration_s": duration,
+        "quality_mode": mode,
+        "dev_mode": dev,
     }
 
 
@@ -484,19 +468,22 @@ def health():
     return {
         "ok": True,
         "ai": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "openai": bool(os.getenv("OPENAI_API_KEY")),
         "duration_s": _target_duration(),
         "taste": TASTE_PATH.exists(),
-        "trends_cron": "local midnight",
+        "pipeline": "hybrid",
+        "youtube_taste_overwrite": False,
     }
 
 
 @app.post("/api/trends/run")
 def run_trends_now():
-    """Manual trigger (same work as the midnight job)."""
-    from pipeline import youtube_trends
-
-    threading.Thread(target=youtube_trends.main, daemon=True).start()
-    return {"ok": True, "status": "started"}
+    """Disabled — YouTube thumbnail taste overwrite is off (PROMPT 9)."""
+    return {
+        "ok": False,
+        "status": "disabled",
+        "reason": "YouTube thumbnail → taste_profile overwrite is disabled",
+    }
 
 
 @app.get("/api/jobs/{job_id}/review-items")

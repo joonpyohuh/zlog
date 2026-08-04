@@ -31,12 +31,18 @@ const STAGE_COPY: Record<string, string> = {
   prepare: 'Preparing media',
   beats: 'Reading music',
   split: 'Finding scenes',
+  evidence: 'Evidence frames',
+  features: 'Features',
   filter: 'Cleaning shots',
-  sheet: 'Building contact sheets',
-  select: 'Cutting to the beat',
-  select_ai: 'Choosing shots',
+  sheet: 'Contact sheets',
+  analyze: 'Asset analysis',
+  director: 'Story plan',
+  plan: 'Timeline',
+  evaluate: 'Evaluating plan',
+  select: 'Baseline cut',
   render: 'Rendering film',
   grade: 'Color grade',
+  audio: 'Audio mix',
   done: 'Ready',
 };
 
@@ -64,6 +70,9 @@ export default function App() {
   const [files, setFiles] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
   const [job, setJob] = useState<JobStatus | null>(null);
+  const [qualityMode, setQualityMode] = useState<'economy' | 'balanced' | 'premium'>(
+    'balanced',
+  );
   const [dragOver, setDragOver] = useState(false);
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [reviewChoices, setReviewChoices] = useState<Record<string, 'keep' | 'drop' | 'skip'>>({});
@@ -145,6 +154,8 @@ export default function App() {
 
     const body = new FormData();
     body.append('note', text.trim());
+    body.append('quality_mode', qualityMode);
+    body.append('dev_mode', '0');
     for (const item of files) body.append('files', item.file);
 
     try {
@@ -343,6 +354,19 @@ export default function App() {
         )}
 
         <div className="composer">
+          <select
+            aria-label="Quality mode"
+            className="quality-select"
+            value={qualityMode}
+            disabled={busy}
+            onChange={(e) =>
+              setQualityMode(e.target.value as 'economy' | 'balanced' | 'premium')
+            }
+          >
+            <option value="economy">economy</option>
+            <option value="balanced">balanced</option>
+            <option value="premium">premium</option>
+          </select>
           <button
             type="button"
             className="icon-btn"

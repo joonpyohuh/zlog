@@ -2,15 +2,15 @@
 
 ## 제품 개요
 
-사용자의 사진/영상 원본을 넣으면 15~60초짜리 브이로그 mp4가 나온다.
+사용자의 사진/영상 원본을 넣으면 짧은 세로 브이로그 mp4가 나온다.
 
-- **비주얼 컨셉**: 2000년대 CCD 캠코더 감성의 Y2K 레트로 룩 (쿨톤, 4:3 레터박스)
-- **엔딩**: 영상 마지막 2초, 검은 화면 + 흰 산세리프로 "directed by zlog" 크레딧
+- **기본 스타일**: `clean_vlog` (1080×1920, 자연 색감, 강제 Y2K 키트 없음)
+- **옵션**: `y2k_camcorder` — 편집 의도에 Y2K/CCD/레트로가 명시될 때만
+- **런타임**: 로컬 CLI (`run.py`) + FastAPI (`server.py`) + Vite `web/` + Next.js Studio (`next-web/`)
+- **오케스트레이션**: `pipeline/product_pipeline.py` (hybrid Claude + GPT)
 
-지금 단계는 **로컬 CLI 스크립트만** 만든다. 웹앱은 만들지 않는다.
-
-> 제품 비전·수익 모델·로드맵 등 전체 맥락은 `zlog 기획서임.pdf` 참고. 이 저장소는
-> 로드맵상 "Founder Taste Lab" 단계에서 창업자 본인이 쓸 편집 파이프라인의 뼈대다.
+> 제품 비전·수익 모델·로드맵 등 전체 맥락은 `zlog 기획서임.pdf` 참고.
+> 프로덕션 경로 스냅샷: `evals/production_path.md`.
 
 ## 아키텍처 대원칙 (반드시 지킬 것)
 
@@ -31,35 +31,26 @@
 
 ```
 zlog/
-  run.py                  # 오케스트레이터 CLI (click): pipeline(기본)/review 서브커맨드
+  run.py                     # CLI 오케스트레이터 → product_pipeline
+  server.py                  # FastAPI job API (web + Studio)
   pipeline/
-    split.py              # 씬 분할 + 프레임 추출
-    filter.py              # 품질 필터
-    sheet.py               # 컨택트 시트 생성 (나중)
-    beats.py                # BGM 비트 그리드 (나중)
-    tag.py                   # 후보 프레임 구조화 태깅 (Claude, select_ai 이전 단계)
-    taste.py                 # taste_profile.json + examples.jsonl -> 프롬프트 블록
-    select_baseline.py    # AI 없는 휴리스틱 선택
-    select_ai.py           # Claude API 선택
-    captions.py             # 자막 텍스트+배치 — LLM은 텍스트만 쓰고, 오프셋 계산은 전부 여기서
-    edl.py                  # EDL 스키마 정의 + 검증
-    grade.py                # ffmpeg LUT 색보정 (render 다음 단계)
-  render/                  # Remotion 프로젝트 — EDL을 읽어 mp4로 렌더
-    src/                   # ZlogFilm/Clip/Caption/CamcorderOverlay/FilmLook/EndingCredit, Root.tsx
-    resolve-props.mjs       # EDL의 source_file/bgm_id를 실제 경로로 해석 (플레인 Node)
-    public/                 # resolve-props.mjs가 매 렌더마다 채우는 스테이징 폴더 (gitignore)
-  prompts/
-    select.md               # select_ai.py 시스템 프롬프트 (자주 수정됨)
-  taste/
-    taste_profile.json       # 명시적 편집 취향 (직접 수정)
-    examples.jsonl            # 실제 keep/drop 판단 기록 (`run.py review`가 append)
-    examples/                 # examples.jsonl이 가리키는 프레임 썸네일
-  work/                    # 중간 산출물 (gitignore, project별 하위 폴더)
-  footage/                 # 원본 (gitignore)
-  assets/
-    bgm/                   # BGM + 비트 그리드 json
-    luts/                  # .cube 파일
-  evals/                   # 골든 데이터셋 (나중)
+    product_pipeline.py      # 공유 end-to-end 체인
+    split.py / evidence.py / filter.py / sheet.py / beats.py
+    analyze_assets.py        # Claude Haiku (+ 모드별 Sonnet 승급)
+    director.py              # Claude Sonnet StoryPlan
+    plan_timeline.py         # 코드 TimelinePlan + EDL
+    evaluate_plan.py         # 코드 검사 + Luna + Claude/Sol 수정
+    audio_engine.py          # FFmpeg ducking / mix
+    select_baseline.py       # 폴백 휴리스틱
+    select_ai.py / tag.py    # legacy 경로 (서버 기본 경로 아님)
+    ai/                      # providers, schemas, router, usage
+    grade.py / edl.py / taste.py
+  render/                    # Remotion
+  web/                       # Vite composer
+  next-web/                  # Next.js Studio + billing
+  prompts/ select.md
+  taste/                     # founder taste (YouTube 자동 덮어쓰기 비활성)
+  work/  footage/  assets/  evals/
 ```
 
 `work/<project>/`가 한 번의 파이프라인 실행 단위다. `project`는 `footage/<project>/`
@@ -201,62 +192,28 @@ segment_id/사유 텍스트만 들어간다. `taste_profile.json`/`examples.json
 ```bash
 uv sync
 cd render && npm install && cd ..
-cp .env.example .env   # ANTHROPIC_API_KEY 채우기 (select_ai.py 쓸 때만 필요)
+cp .env.example .env   # ANTHROPIC_API_KEY (+ OPENAI_API_KEY for Luna/Sol)
 ```
 
-전체 파이프라인(휴리스틱 선택 기준)은 오케스트레이터 하나로 돌아간다:
+하이브리드 제품 파이프라인:
 
 ```bash
-python run.py footage/trip_01 --bgm y2k_synth_01 --duration 15
+python run.py footage/trip_01 --bgm demo_track --duration 15
+python run.py footage/trip_01 --bgm demo_track --quality-mode premium --force
 ```
 
-`--bgm`은 `assets/bgm/<name>.mp3`(또는 `.wav`)와 그 옆의 `<name>.beats.json`을
-가리키는 이름이다 — beats.json은 아직 `beats.py`가 스켈레톤이라 사람이 미리
-만들어 둬야 한다. 이미 있는 산출물은 스킵하고(`--force`로 무시), `--from
-<stage>`로 특정 단계부터 다시 시작할 수 있다 (`split`/`filter`/`select`/
-`render`/`grade` 중 하나). 실패하면 어느 단계에서 몇 초 만에 왜 실패했는지
-stderr에 찍고 종료한다.
+웹 API: `uv run uvicorn server:app --host 127.0.0.1 --port 8000`  
+Vite: `cd web && npm run dev` · Studio: `cd next-web && npm run dev` (`ZLOG_API_BASE`).
 
-완료된 프로젝트를 놓고 직접 keep/drop을 판정해 취향 데이터를 쌓으려면:
+품질 모드: `economy` (GPT 없음) / `balanced` (Luna) / `premium` (Luna+Sol).
+YouTube 썸네일 → taste 덮어쓰기는 기본 비활성.
 
-```bash
-python run.py review work/trip_01
-```
+완료 프로젝트 keep/drop: `python run.py review work/trip_01`
 
-각 단계는 독립 실행도 가능하다 (원칙 5). `project`는 `footage/<project>/`
-디렉토리 이름에서 가져온다:
-
-```bash
-python -m pipeline.split footage/trip_01
-python -m pipeline.filter --project trip_01
-python -m pipeline.select_baseline --project trip_01 --bgm-track assets/bgm/track1.mp3 --target-duration-s 15
-python -m pipeline.tag --project trip_01
-python -m pipeline.select_ai --project trip_01 --bgm-track assets/bgm/track1.mp3 --target-duration-s 15
-python -m pipeline.grade --input work/trip_01/render.mp4 --lut assets/luts/ccd_cool_01.cube --output work/trip_01/final.mp4
-```
-
-렌더는 두 단계다 — `resolve-props.mjs`가 먼저 EDL의 파일 참조를 실제 경로로
-바꿔야 한다 (render/ 아키텍처 노트 참고):
-
-```bash
-cd render
-node resolve-props.mjs ../work/trip_01/edl_baseline.json ../work/trip_01/edl_resolved.json
-npx remotion render src/index.ts ZlogFilm ../work/trip_01/render.mp4 --props=../work/trip_01/edl_resolved.json
-```
-
-`split.py`, `filter.py`, `select_baseline.py`, `tag.py`, `taste.py`,
-`select_ai.py`, `grade.py`, `render/`, `run.py`(pipeline/review 둘 다)는
-구현되어 있다. `sheet.py`, `beats.py`, `evals/`는 아직 `NotImplementedError`를
-던지는 스켈레톤이다 — 이 둘이 없으면 `tag.py`/`select_ai.py`도 실제로는
-(컨택트 시트와 비트 그리드가 사람이 미리 만들어둔 게 아닌 이상) 끝까지 돌지
-않는다.
+렌더는 항상 `resolve-props.mjs` 후 Remotion (`run.py` / `product_pipeline`이 수행).
 
 ## 지금 하지 말 것
 
-- 웹앱/API 서버를 만들지 않는다. 지금은 로컬 CLI뿐이다.
-- `pipeline/sheet.py`, `pipeline/beats.py`, `evals/`는 스켈레톤만 존재 — 지시
-  없이 실제 로직을 채우지 않는다.
-- 위 아키텍처 대원칙 5가지를 우회하는 "임시 방편"을 추가하지 않는다 (예: LLM이 프레임
-  타임스탬프를 텍스트로 추정해서 쓰는 fallback 등).
-- API 키를 코드/문서/커밋/채팅에 절대 하드코딩하지 않는다. `.env`(gitignore됨)에서만
-  읽는다 — 채팅에 키가 노출되면 즉시 폐기(rotate)하라고 알린다.
+- 아키텍처 대원칙 5가지를 우회하는 임시 방편 (LLM 타임스탬프 생성 등).
+- API 키·전체 시스템 프롬프트를 UI/로그/커밋에 노출하지 않는다.
+- `ZLOG_ALLOW_YOUTUBE_TASTE_OVERWRITE` 없이 taste_profile을 트렌드로 덮어쓰지 않는다.

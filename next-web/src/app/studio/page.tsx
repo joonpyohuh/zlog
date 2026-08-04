@@ -3,6 +3,7 @@ import {redirect} from 'next/navigation';
 import {createClient} from '@/lib/supabase/server';
 import {requireProAccess} from '@/lib/billing';
 import {UpgradeToProButton} from '@/components/billing/UpgradeToProButton';
+import {StudioComposer} from '@/components/studio/StudioComposer';
 
 export default async function StudioPage() {
   const supabase = await createClient();
@@ -30,17 +31,22 @@ export default async function StudioPage() {
     );
   }
 
+  const apiBase = process.env.ZLOG_API_BASE ?? process.env.NEXT_PUBLIC_ZLOG_API_BASE ?? '';
+  const devDefault = process.env.ZLOG_DEV_MODE === '1';
+
   return (
     <main className="mx-auto w-full max-w-3xl px-5 pb-24 pt-8">
-      <h1 className="text-3xl text-white">Studio</h1>
+      <h1 className="brand text-4xl text-white">zlog</h1>
       <p className="mt-2 text-sm text-neutral-500">
-        You have Pro access. Point this UI at your long-running zlog API (`ZLOG_API_BASE`) for film
-        jobs — billing stays on this Next.js app.
+        Studio · hybrid Claude + GPT pipeline via FastAPI (`ZLOG_API_BASE`)
       </p>
-      <div className="mt-8 rounded-3xl border border-neutral-800 bg-black/70 p-6 text-sm text-neutral-400">
-        Composer / job runner can be wired to the existing FastAPI `server.py` host. Pro gate is
-        enforced here via `requireProAccess()`.
-      </div>
+      {!apiBase ? (
+        <p className="mt-6 rounded-2xl border border-amber-900/40 bg-amber-950/20 p-4 text-sm text-amber-100/80">
+          Set `ZLOG_API_BASE` (or `NEXT_PUBLIC_ZLOG_API_BASE`) to your local uvicorn host, e.g.
+          `http://127.0.0.1:8000`.
+        </p>
+      ) : null}
+      <StudioComposer apiBase={apiBase} devModeDefault={devDefault} />
     </main>
   );
 }

@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "scenarios": [
+    {
+      "id": "unrelated_six_stills",
+      "title": "서로 연관이 적은 사진 여섯 장",
+      "intent": "짧은 브이로그로 자연스럽게 묶어줘",
+      "media_hint": "6 unrelated stills",
+      "fixture_photos": "photos_vlog_same_subject",
+      "stress": ["duration_padding", "false_narrative"]
+    },
+    {
+      "id": "repeated_pet",
+      "title": "반복되는 반려동물 사진",
+      "intent": "강아지 하루 브이로그",
+      "media_hint": "near-duplicate pet stills",
+      "stress": ["redundancy", "segment_repeat"]
+    },
+    {
+      "id": "cafe_chrono",
+      "title": "시간 순서가 있는 카페 방문",
+      "intent": "카페 방문 순서대로 담아줘",
+      "media_hint": "arrival → order → drink → leave",
+      "stress": ["chronology"]
+    },
+    {
+      "id": "short_travel_clip",
+      "title": "짧은 여행 영상",
+      "intent": "여행 하이라이트 15초",
+      "media_hint": "short travel video",
+      "stress": ["hook", "motion"]
+    },
+    {
+      "id": "dialogue_video",
+      "title": "대화가 있는 영상",
+      "intent": "대화가 들리면 음악 줄여줘",
+      "media_hint": "video with speech",
+      "stress": ["audio_duck", "caption_grounding"]
+    },
+    {
+      "id": "nature_ambience",
+      "title": "중요한 자연음이 있는 영상",
+      "intent": "파도 소리 살려줘",
+      "media_hint": "nature ambience dominant",
+      "stress": ["audio_preserve"]
+    },
+    {
+      "id": "landscape_focus",
+      "title": "풍경 중심 영상",
+      "intent": "풍경 위주로 잔잔하게",
+      "media_hint": "wide landscapes",
+      "stress": ["crop_safety", "motion_pan"]
+    },
+    {
+      "id": "portrait_focus",
+      "title": "인물 중심 영상",
+      "intent": "얼굴이 잘 보이게",
+      "media_hint": "people close-ups",
+      "stress": ["subject_aware_crop", "focus"]
+    },
+    {
+      "id": "explicit_y2k",
+      "title": "명시적인 Y2K 요청",
+      "intent": "Y2K CCD 캠코더 감성으로 만들어줘",
+      "media_hint": "any",
+      "stress": ["style_y2k"]
+    },
+    {
+      "id": "vague_intent",
+      "title": "모호한 사용자 편집 요청",
+      "intent": "감성적인 유튜브 브이로그로 만들어줘",
+      "media_hint": "photos_vlog_same_subject",
+      "fixture_photos": "photos_vlog_same_subject",
+      "stress": ["prompt_leakage", "caption_hallucination"]
+    }
+  ],
+  "modes": ["baseline", "economy", "balanced", "premium"],
+  "metrics": [
+    "prompt_leakage",
+    "unique_asset_ratio",
+    "repeated_scenes",
+    "chronology_ok",
+    "hook_quality",
+    "caption_grounding",
+    "crop_failures",
+    "render_success",
+    "processing_time_s",
+    "model_cost_usd",
+    "escalation_rate"
+  ],
+  "cost_estimates_usd_per_short": {
+    "baseline": 0.0,
+    "economy": 0.04,
+    "balanced": 0.09,
+    "premium": 0.18
+  }
+}

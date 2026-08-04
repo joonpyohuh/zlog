@@ -1,85 +1,47 @@
-# Current production path (frozen — PROMPT 0)
+# Current production path (PROMPT 9)
 
-Do not treat this as the target architecture. It records what the repo
-actually runs today so hybrid-AI work can land without guessing.
-
-## Web job path (`server.py`)
+## Web / Studio job path (`server.py`)
 
 ```
-POST /api/jobs
-  → stage footage/web_<id>/ (+ optional slate.mp4)
-  → image→still_XX.mp4 via ffmpeg (_image_to_clip)
-  → write note.txt
-  → beats.extract_beat_grid if .beats.json missing
-  → pipeline.split.run_split
-  → pipeline.evidence.run_evidence (adaptive frames; no AI)
-  → pipeline.filter.filter_scenes
-  → server._ensure_candidates (promote soft stills)
-  → pipeline.sheet.build_contact_sheets
-  → pipeline.select_ai.select_ai  (if ANTHROPIC_API_KEY)
-       else pipeline.select_baseline.select_baseline
-  → run._stage_render (resolve-props.mjs → Remotion ZlogFilm)
-  → run._stage_grade (ffmpeg lut3d)
+POST /api/jobs  (note, files, quality_mode, dev_mode)
+  → footage/web_<id>/ + upload_order.json
+  → image→still_XX.mp4
+  → note.txt
+  → beats if missing
+  → pipeline.product_pipeline.run_product_pipeline:
+       split → evidence(+features) → filter → sheet
+       → analyze_assets → director → plan_timeline
+       → evaluate_plan → render → grade → audio_engine
   → work/<project>/final.mp4
 ```
 
+Fallback: if hybrid AI fails or no `ANTHROPIC_API_KEY`, `select_baseline`.
+
 ## CLI path (`run.py pipeline`)
 
-```
-split → filter → select_baseline → render → grade
-```
+Same `run_product_pipeline` stages. Flags: `--quality-mode`, `--baseline`, `--intent`.
 
-No sheet / tag / select_ai on the CLI chain today.
+## Quality modes
 
-## Intermediate artifacts under `work/<project>/`
+| Mode | Analyze | Evaluate | Sol |
+|---|---|---|---|
+| economy | Haiku only | code only | no |
+| balanced | Haiku + selective Sonnet | Luna + Claude revise | no |
+| premium | Haiku + aggressive Sonnet | Luna + Claude + Sol | yes if needed |
 
-| File / dir | Producer | Consumer |
-|---|---|---|
-| `note.txt` | `server.py` | captions (not Claude prompt today) |
-| `segments.json` | `pipeline/split.py` | filter, evidence |
-| `frames/<segment_id>.jpg` | split (mid-frame, legacy) | filter, sheet, review |
-| `upload_order.json` | `server.py` (multipart order) | evidence chronology |
-| `evidence/<segment_id>#fNN.jpg` | evidence | evidence sheets / future AI |
-| `evidence_manifest.json` | evidence | future analyzer |
-| `deterministic_features.json` | evidence | future analyzer / evaluator |
-| `evidence_sheets/` + `evidence_sheet_manifest.json` | evidence | human / future AI |
-| `candidates.json` | filter (+ `_ensure_candidates`) | sheet, select_* |
-| `rejected_contact.jpg` | filter | human debug |
-| `contact_sheets/sheet_*.jpg` | sheet | select_ai, tag (unused on server) |
-| `contact_sheet_manifest.json` | sheet | select_ai, tag |
-| `tags.json` / candidates.tags | tag.py (not on server path) | select_ai (optional) |
-| `edl_ai.json` / `edl_baseline.json` | select_ai / select_baseline | render, grade, inspect-edl |
-| `edl_resolved.json` | `render/resolve-props.mjs` | Remotion `--props` |
-| `render.mp4` | Remotion | grade |
-| `final.mp4` | `pipeline/grade.py` | `/api/jobs/.../video` |
+## Artifacts
 
-Also used (outside `work/`):
-
-| Path | Role |
+| File | Producer |
 |---|---|
-| `footage/<project>/*` | staged uploads + `still_XX.mp4` |
-| `assets/bgm/<track>.{wav,mp3}` + `.beats.json` | audio + beat grid |
-| `assets/luts/<lut>.cube` | ffmpeg lut3d |
-| `.zlog_jobs/<id>.json` | web job status |
+| `upload_order.json` | server upload |
+| `segments.json` | split |
+| `evidence_*`, `deterministic_features.json` | evidence |
+| `candidates.json` | filter |
+| `asset_analyses.json` | analyze_assets |
+| `story_plan.json` | director |
+| `timeline_plan.json`, `edl_ai.json` | plan_timeline |
+| `plan_evaluation.json` | evaluate_plan |
+| `pipeline_run.json` | product_pipeline telemetry summary |
+| `render.mp4` / `final.mp4` / `audio_mix.wav` | Remotion / grade / audio |
 
-## Known regressions captured under `evals/`
-
-1. Raw user note used as opening caption title  
-   Intent fixture: `감성적인 유튜브 브이로그로 만들어줘`
-2. Fixed 4:3 letterbox frame only
-3. Still-source modulo reuse via `expand_timeline_to_target`
-4. Order-cycled Ken Burns (content-independent)
-5. User note never enters Claude `_build_user_content`
-6. No semantic evaluator / `tag.py` not on server path
-7. CLAUDE.md / README disagree with `server.py`
-
-Photo fixture (6 same-subject stills):
-
-`evals/fixtures/photos_vlog_same_subject/`
-
-Inspect an EDL:
-
-```bash
-python -m pipeline.inspect_edl work/<project>/edl_ai.json
-python run.py inspect-edl evals/fixtures/edl_intent_caption_and_repeats.json
-```
+YouTube taste overwrite: **disabled** unless `ZLOG_ALLOW_YOUTUBE_TASTE_OVERWRITE=1`.

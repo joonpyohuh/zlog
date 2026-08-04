@@ -448,6 +448,8 @@ async def _run_haiku_pass(
     client: anthropic.AsyncAnthropic,
     bundles: list[SegmentBundle],
     model: str,
+    *,
+    uncertainty_threshold: float | None = UNCERTAINTY_ESCALATE,
 ) -> tuple[dict[str, AssetAnalysis], dict[str, EscalationDecision], list[CallUsage]]:
     by_id = {b.segment.segment_id: b for b in bundles}
     results: dict[str, AssetAnalysis] = {}
@@ -483,9 +485,17 @@ async def _run_haiku_pass(
                         update={"analysis_provider": "anthropic", "analysis_model": model}
                     )
                     results[b.segment.segment_id] = a
-                    decisions[b.segment.segment_id] = needs_sonnet_escalation(
-                        a, expected_evidence_ids=b.expected_evidence_ids
-                    )
+                    if uncertainty_threshold is None:
+                        # economy: keep Haiku; do not mark for Sonnet
+                        decisions[b.segment.segment_id] = EscalationDecision(
+                            b.segment.segment_id, []
+                        )
+                    else:
+                        decisions[b.segment.segment_id] = needs_sonnet_escalation(
+                            a,
+                            expected_evidence_ids=b.expected_evidence_ids,
+                            uncertainty_threshold=uncertainty_threshold,
+                        )
             except ValueError:
                 # One structured failure → escalate each segment in the batch once.
                 for b in batch:
@@ -639,8 +649,12 @@ def analyze_assets(
     config: ModelConfig | None = None,
     client: anthropic.AsyncAnthropic | None = None,
     force: bool = False,
+    uncertainty_threshold: float | None = UNCERTAINTY_ESCALATE,
 ) -> Path:
-    """Run Haiku analysis + selective Sonnet escalation; write artifacts."""
+    """Run Haiku analysis + selective Sonnet escalation; write artifacts.
+
+    uncertainty_threshold=None disables Sonnet escalation (economy mode).
+    """
     load_dotenv()
     cfg = config or load_model_config()
     project_dir = work_dir / project
@@ -677,7 +691,12 @@ def analyze_assets(
     try:
         aclient = client or anthropic.AsyncAnthropic()
         haiku_results, decisions, haiku_usages = asyncio.run(
-            _run_haiku_pass(aclient, bundles, haiku_model)
+            _run_haiku_pass(
+                aclient,
+                bundles,
+                haiku_model,
+                uncertainty_threshold=uncertainty_threshold,
+            )
         )
         usages.extend(u.as_dict() for u in haiku_usages)
         escalations = decisions
@@ -687,13 +706,15 @@ def analyze_assets(
             sid for sid, d in decisions.items() if d.should_escalate and d.reasons != ["api_failure"]
         ]
         # api_failure on Haiku → try Sonnet for those too (still not "all segments")
-        escalate_ids += [
-            sid for sid, d in decisions.items() if "api_failure" in d.reasons
-        ]
+        # except economy (uncertainty_threshold is None).
+        if uncertainty_threshold is not None:
+            escalate_ids += [
+                sid for sid, d in decisions.items() if "api_failure" in d.reasons
+            ]
         escalate_ids = list(dict.fromkeys(escalate_ids))
         escalate_bundles = [b for b in bundles if b.segment.segment_id in escalate_ids]
 
-        if escalate_bundles:
+        if escalate_bundles and uncertainty_threshold is not None:
             click.echo(
                 f"escalating {len(escalate_bundles)}/{len(bundles)} segment(s) → {sonnet_model}"
             )

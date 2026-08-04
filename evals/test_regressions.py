@@ -209,41 +209,26 @@ def test_desired_build_user_content_accepts_note_or_intent():
     assert "note" in params or "intent" in params or "user_intent" in params
 
 
-# --- 6. missing semantic evaluation ----------------------------------------
+# --- 6. semantic evaluation on product path --------------------------------
 
 
-def test_current_no_evaluator_and_tag_not_on_server_path():
-    assert not (REPO / "pipeline" / "evaluate.py").exists()
+def test_evaluator_wired_on_server_product_pipeline():
     server = (REPO / "server.py").read_text(encoding="utf-8")
+    assert "run_product_pipeline" in server
+    assert (REPO / "pipeline" / "evaluate_plan.py").exists()
     assert "from pipeline import tag" not in server
-    assert "pipeline.tag" not in server
 
 
-@pytest.mark.xfail(reason="PROMPT later: add semantic evaluation stage on server path", strict=True)
-def test_desired_semantic_evaluator_wired_on_server():
-    server = (REPO / "server.py").read_text(encoding="utf-8")
-    assert (REPO / "pipeline" / "evaluate.py").exists() or "evaluator" in server
-    assert "tag" in server.lower()
+# --- 7. docs match server / web --------------------------------------------
 
 
-# --- 7. docs disagree with server ------------------------------------------
-
-
-def test_current_docs_claim_no_webapp_while_server_exists():
-    assert (REPO / "server.py").exists()
-    claude = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
-    readme = (REPO / "README.md").read_text(encoding="utf-8")
-    assert "웹앱" in claude and ("만들지 않는다" in claude or "만들지 말" in claude)
-    assert "웹앱은 아직 없다" in readme
-
-
-@pytest.mark.xfail(reason="PROMPT later: docs must match server.py web pipeline", strict=True)
-def test_desired_docs_acknowledge_server_web_pipeline():
+def test_docs_acknowledge_server_web_pipeline():
     readme = (REPO / "README.md").read_text(encoding="utf-8")
     claude = (REPO / "CLAUDE.md").read_text(encoding="utf-8")
     assert "웹앱은 아직 없다" not in readme
     assert "server.py" in readme
-    assert "NotImplementedError" not in claude or "sheet.py" not in claude
+    assert "server.py" in claude
+    assert "product_pipeline" in claude or "hybrid" in claude.lower()
 
 
 # --- inspect_edl -----------------------------------------------------------
