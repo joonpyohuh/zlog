@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 BEAT_SNAP_TOLERANCE_S = 0.04
 DURATION_TOLERANCE_S = 1.0
@@ -114,6 +114,9 @@ class TimelineClip(BaseModel):
     "flash" is a 3-frame white flash burned in by the renderer at section
     boundaries (intro->main->outro). Purely cosmetic — timing still comes
     from the beat grid.
+
+    Optional narrative fields are filled by plan_timeline.py (PROMPT 5);
+    older baseline/select_ai EDLs omit them and keep schema defaults.
     """
 
     order: int
@@ -122,6 +125,15 @@ class TimelineClip(BaseModel):
     in_sec: float
     out_sec: float
     transition: Literal["cut", "flash"] = "cut"
+    role: str | None = None
+    evidence_frame_ids: list[str] = Field(default_factory=list)
+    fit_mode: str = "cover"
+    focus_x: float = 0.5
+    focus_y: float = 0.5
+    motion: str = "ken_burns_in"
+    motion_strength: float = 0.35
+    overlay: str | None = None
+    reuse_reason: str | None = None
 
 
 class Caption(BaseModel):
@@ -160,6 +172,7 @@ class EDL(BaseModel):
     timeline: list[TimelineClip] = []
     captions: list[Caption] = []
     signature: Signature
+    style_preset: str = "clean_vlog"
 
 
 def load_segments(path: Path) -> SegmentsFile:

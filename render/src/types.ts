@@ -36,6 +36,15 @@ export type TimelineClip = {
   // 'flash' = renderer burns a short white flash as this clip enters
   // (section boundaries). Timing still comes from the beat grid.
   transition: 'cut' | 'flash';
+  role?: string | null;
+  evidence_frame_ids?: string[];
+  fit_mode?: string;
+  focus_x?: number;
+  focus_y?: number;
+  motion?: string;
+  motion_strength?: number;
+  overlay?: string | null;
+  reuse_reason?: string | null;
 };
 
 export type Caption = {
@@ -65,6 +74,7 @@ export type Edl = {
   timeline: TimelineClip[];
   captions?: Caption[];
   signature: Signature;
+  style_preset?: string;
 };
 
 // Resolved-in-Node variants: resolve-props.mjs stages each clip's video and
