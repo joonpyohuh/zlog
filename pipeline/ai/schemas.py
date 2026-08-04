@@ -130,6 +130,112 @@ class EffectStrategy(BaseModel):
     reason: str = ""
 
 
+class EffectId(str, Enum):
+    clean_cut = "clean_cut"
+    micro_push_in = "micro_push_in"
+    micro_pull_out = "micro_pull_out"
+    reaction_punch_in = "reaction_punch_in"
+    blur_caption_focus = "blur_caption_focus"
+    freeze_reaction_hold = "freeze_reaction_hold"
+    soft_reveal = "soft_reveal"
+    ambient_outro = "ambient_outro"
+
+
+class ReasonCode(str, Enum):
+    hook_potential = "HOOK_POTENTIAL"
+    reaction_visible = "REACTION_VISIBLE"
+    important_caption = "IMPORTANT_CAPTION"
+    spatial_orientation = "SPATIAL_ORIENTATION"
+    natural_audio_priority = "NATURAL_AUDIO_PRIORITY"
+    ending_breath = "ENDING_BREATH"
+    callback_payoff = "CALLBACK_PAYOFF"
+    low_crop_confidence = "LOW_CROP_CONFIDENCE"
+    no_effect_needed = "NO_EFFECT_NEEDED"
+    narrative_payoff = "NARRATIVE_PAYOFF"
+
+
+class CreativeMotion(BaseModel):
+    type: Literal["none", "micro_push_in", "micro_pull_out"] = "none"
+    strength: float = Field(default=0.0, ge=0.0, le=1.0)
+    focus_x: float = Field(default=0.5, ge=0.0, le=1.0)
+    focus_y: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class CreativeCaption(BaseModel):
+    mode: CaptionStrategy = CaptionStrategy.none
+    text: str = ""
+    reason: str = ""
+
+
+class CreativeAudio(BaseModel):
+    preserve_source: bool = False
+    duck_bgm: bool = False
+    reason: str = ""
+
+
+class CreativeDecision(BaseModel):
+    segment_id: str
+    narrative_role: ClipRole
+    selection_reasons: list[ReasonCode] = Field(default_factory=list)
+    cut_reason: str
+    entry_effect: EffectId = EffectId.clean_cut
+    primary_effect: EffectId = EffectId.clean_cut
+    exit_effect: EffectId = EffectId.clean_cut
+    motion: CreativeMotion = Field(default_factory=CreativeMotion)
+    caption: CreativeCaption = Field(default_factory=CreativeCaption)
+    audio: CreativeAudio = Field(default_factory=CreativeAudio)
+    reuse_reason: Literal[
+        "opening_callback", "visual_motif_callback", "narrative_payoff"
+    ] | None = None
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
+class CreativeCallback(BaseModel):
+    enabled: bool = False
+    source_segment_id: str | None = None
+    target_position: Literal["ending"] = "ending"
+    reuse_reason: Literal[
+        "opening_callback", "visual_motif_callback", "narrative_payoff"
+    ] | None = None
+    alternate_crop: bool = False
+
+    @model_validator(mode="after")
+    def _reason_required(self) -> CreativeCallback:
+        if self.enabled and (not self.source_segment_id or not self.reuse_reason):
+            raise ValueError("enabled callback requires source_segment_id and reuse_reason")
+        return self
+
+
+class CreativeEffectBudget(BaseModel):
+    strong_effects_max: int = Field(default=2, ge=0)
+    medium_effects_max: int = Field(default=3, ge=0)
+    caption_focus_effects_max: int = Field(default=1, ge=0)
+
+
+class CreativeExecutionPlan(BaseModel):
+    project: str
+    version: str = "1"
+    creative_intent: str
+    opening_strategy: Literal["cold_open", "soft_reveal", "clean_open"]
+    ending_strategy: Literal["ambient_hold", "micro_pull_out", "clean_end"]
+    callback: CreativeCallback = Field(default_factory=CreativeCallback)
+    effect_budget: CreativeEffectBudget = Field(default_factory=CreativeEffectBudget)
+    decisions: list[CreativeDecision] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _callback_is_the_only_duplicate(self) -> CreativeExecutionPlan:
+        counts: dict[str, int] = {}
+        for decision in self.decisions:
+            counts[decision.segment_id] = counts.get(decision.segment_id, 0) + 1
+        duplicates = {sid for sid, count in counts.items() if count > 1}
+        if not duplicates:
+            return self
+        allowed = {self.callback.source_segment_id} if self.callback.enabled else set()
+        if duplicates != allowed or any(counts[sid] != 2 for sid in duplicates):
+            raise ValueError("only one explicit callback segment may be reused once")
+        return self
+
+
 class FitMode(str, Enum):
     cover = "cover"
     contain = "contain"

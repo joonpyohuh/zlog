@@ -26,8 +26,11 @@ import click
 
 from pipeline.ai.schemas import (
     AssetAnalysis,
+    AudioStrategy,
     CaptionMode,
+    CaptionStrategy,
     ClipRole,
+    EffectStrategy,
     FitMode,
     MediaType,
     MotionKind,
@@ -38,6 +41,11 @@ from pipeline.ai.schemas import (
     TimelinePlan,
     TransitionKind,
     canonical_clip_role,
+)
+from pipeline.creative_execution import (
+    build_execution_plan,
+    choose_callback,
+    write_execution_artifacts,
 )
 from pipeline.director import (
     max_allowed_duration_sec,
@@ -404,18 +412,18 @@ def build_sparse_captions(
         host = timeline[-1]
         text = moods[0]
         a = analyses.get(host.segment_id)
-        if a and not grounded(text, host.segment_id):
-            text = a.mood.value
-        captions.append(
-            Caption(
-                segment_id=host.segment_id,
-                text=text,
-                style="lower_third",
-                position="bottom",
-                start_offset_sec=0.1,
-                grounding="mood",
+        # Mood enums and raw analysis labels are metadata, not user-facing copy.
+        if a and grounded(text, host.segment_id) and text.lower() != a.mood.value:
+            captions.append(
+                Caption(
+                    segment_id=host.segment_id,
+                    text=text,
+                    style="lower_third",
+                    position="bottom",
+                    start_offset_sec=0.1,
+                    grounding="visually_grounded_facts",
+                )
             )
-        )
     elif len(timeline) > 2 and facts[1:] and story.caption_mode == CaptionMode.dense:
         mid = timeline[len(timeline) // 2]
         captions.append(
@@ -468,7 +476,7 @@ def score_timeline(
     scores["role_coverage"] = role_score
 
     # Chronology naturalness after cold open
-    body_ids = [c.segment_id for c in planned[1:]]
+    body_ids = [c.segment_id for c in planned[1:] if not c.reuse_reason]
     body_analyses = [analyses[s] for s in body_ids if s in analyses]
     chrono_ok = 1.0
     if len(body_analyses) >= 2:
@@ -507,7 +515,19 @@ def score_timeline(
 
     penalties: dict[str, float] = {}
     ids = [c.segment_id for c in planned]
-    if len(ids) != len(set(ids)) and not story.allow_asset_reuse:
+    callback_reuse_ok = all(
+        ids.count(c.segment_id) == 1
+        or c.reuse_reason
+        in {"opening_callback", "visual_motif_callback", "narrative_payoff"}
+        or any(
+            other.segment_id == c.segment_id
+            and other.reuse_reason
+            in {"opening_callback", "visual_motif_callback", "narrative_payoff"}
+            for other in planned
+        )
+        for c in planned
+    )
+    if len(ids) != len(set(ids)) and not story.allow_asset_reuse and not callback_reuse_ok:
         penalties["repeat_segment"] = -12.0
     groups = []
     for sid in ids:
@@ -729,8 +749,10 @@ def plan_timeline(
                 caption_grounding="",
                 overlay=None,
                 reuse_reason=None,
-                caption_strategy="none",
-                effect_strategy={"effect": "none", "reason": "default: no decorative effect"},
+                caption_strategy=CaptionStrategy.none,
+                effect_strategy=EffectStrategy(
+                    effect="none", reason="default: no decorative effect"
+                ),
             )
         )
         if not aesthetic_allows_flash(story.style_preset):
@@ -766,6 +788,53 @@ def plan_timeline(
         for clip in timeline:
             clip.transition = "cut"
 
+    callback = choose_callback(story, planned, analyses)
+    if callback.enabled and callback.source_segment_id and len(planned) > 1:
+        sid = callback.source_segment_id
+        cand = by_cand[sid]
+        analysis = analyses.get(sid)
+        wanted = timeline[-1].out_sec - timeline[-1].in_sec
+        in_sec, out_sec = _place_cut(cand, wanted, beat_times)
+        focus_x = min(0.8, max(0.2, 1.1 - (analysis.focus_x if analysis else 0.5)))
+        focus_y = analysis.focus_y if analysis else 0.45
+        evidence = list(analysis.evidence_frame_ids) if analysis else []
+        planned[-1] = PlannedClip(
+            segment_id=sid,
+            role=ClipRole.resonance,
+            evidence_frame_ids=evidence,
+            preferred_moment=PreferredMoment.end,
+            target_duration_sec=round(out_sec - in_sec, 3),
+            fit_mode=fit_mode_for_analysis(analysis, story.style_preset),
+            focus_x=focus_x,
+            focus_y=focus_y,
+            motion=MotionKind.ken_burns_out,
+            motion_strength=0.3,
+            transition=TransitionKind.cut,
+            reuse_reason=callback.reuse_reason,
+            caption_strategy=CaptionStrategy.none,
+            effect_strategy=EffectStrategy(
+                effect="micro_pull_out", reason="opening callback payoff"
+            ),
+        )
+        timeline[-1] = TimelineClip(
+            order=timeline[-1].order,
+            segment_id=sid,
+            source_file=cand.source_file,
+            in_sec=in_sec,
+            out_sec=out_sec,
+            transition="cut",
+            role=ClipRole.resonance.value,
+            evidence_frame_ids=evidence,
+            fit_mode=fit_mode_for_analysis(analysis, story.style_preset).value,
+            focus_x=focus_x,
+            focus_y=focus_y,
+            motion=MotionKind.ken_burns_out.value,
+            motion_strength=0.3,
+            reuse_reason=callback.reuse_reason,
+            crop_confidence=analysis.crop_confidence if analysis else None,
+        )
+        ordered[-1] = sid
+
     # Ending credit off for clean_vlog unless style asks for camcorder kit
     signature = (
         DEFAULT_SIGNATURE
@@ -773,6 +842,10 @@ def plan_timeline(
         else Signature(enabled=False, text="", duration=0.0)
     )
     captions = build_sparse_captions(story, timeline, analyses)
+    if callback.enabled and callback.source_segment_id:
+        # Caption.segment_id resolves to the first matching clip, so duplicated
+        # callback footage must remain text-free to prevent cross-clip leakage.
+        captions = [c for c in captions if c.segment_id != callback.source_segment_id]
     # Attach caption text onto PlannedClip sparingly
     cap_by_sid = {c.segment_id: c.text for c in captions}
     planned = [
@@ -788,6 +861,42 @@ def plan_timeline(
         )
         for p in planned
     ]
+
+    execution = build_execution_plan(project, story, planned, analyses)
+    updated_planned: list[PlannedClip] = []
+    for clip, decision in zip(planned, execution.decisions, strict=True):
+        updated_planned.append(
+            clip.model_copy(
+                update={
+                    "selection_reasons": [reason.value for reason in decision.selection_reasons],
+                    "cut_reason": decision.cut_reason,
+                    "caption": decision.caption.text,
+                    "caption_grounding": clip.caption_grounding if decision.caption.text else "",
+                    "caption_strategy": decision.caption.mode,
+                    "caption_reason": decision.caption.reason,
+                    "audio_strategy": AudioStrategy(
+                        preserve_source_audio=decision.audio.preserve_source,
+                        bgm_duck=decision.audio.duck_bgm,
+                        reason=decision.audio.reason,
+                    ),
+                    "effect_strategy": EffectStrategy(
+                        effect=decision.primary_effect.value,
+                        reason=", ".join(reason.value for reason in decision.selection_reasons),
+                    ),
+                }
+            )
+        )
+    planned = updated_planned
+    for clip, decision in zip(timeline, execution.decisions, strict=True):
+        clip.entry_effect = decision.entry_effect.value
+        clip.primary_effect = decision.primary_effect.value
+        clip.exit_effect = decision.exit_effect.value
+        clip.effect_reason = ", ".join(reason.value for reason in decision.selection_reasons)
+        clip.selection_reasons = [reason.value for reason in decision.selection_reasons]
+        if decision.motion.type == "micro_push_in":
+            clip.motion = MotionKind.ken_burns_in.value
+        elif decision.motion.type == "micro_pull_out":
+            clip.motion = MotionKind.ken_burns_out.value
 
     actual = sum(c.out_sec - c.in_sec for c in timeline)
     # Final target for validation = clamp to actual±slack friendly value
@@ -815,6 +924,7 @@ def plan_timeline(
         captions=captions,
         signature=signature,
         style_preset=story.style_preset.value,
+        creative_execution_version=execution.version,
     )
 
     problems = validate_edl(
@@ -861,6 +971,7 @@ def plan_timeline(
     )
     save_edl(edl, out_edl)
     out_score.write_text(json.dumps(breakdown, indent=2), encoding="utf-8")
+    write_execution_artifacts(project_dir, execution, planned)
 
     click.echo(
         f"timeline: {len(timeline)} clips, {actual:.2f}s "

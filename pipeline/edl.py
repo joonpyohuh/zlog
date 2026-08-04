@@ -139,6 +139,11 @@ class TimelineClip(BaseModel):
     overlay: str | None = None
     reuse_reason: str | None = None
     crop_confidence: float | None = None
+    entry_effect: str = "clean_cut"
+    primary_effect: str = "clean_cut"
+    exit_effect: str = "clean_cut"
+    effect_reason: str = ""
+    selection_reasons: list[str] = Field(default_factory=list)
 
 
 class Caption(BaseModel):
@@ -180,6 +185,7 @@ class EDL(BaseModel):
     captions: list[Caption] = []
     signature: Signature
     style_preset: str = "clean_vlog"
+    creative_execution_version: str | None = None
 
 
 def load_segments(path: Path) -> SegmentsFile:

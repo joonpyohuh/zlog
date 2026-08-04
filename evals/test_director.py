@@ -167,7 +167,7 @@ def test_validate_rejects_unknown_and_duplicate_and_leak():
     assert any("unknown" in e for e in errors2)
 
 
-def test_clean_vlog_rejects_caption_mode_none():
+def test_clean_vlog_allows_caption_mode_none():
     analyses = _few_photos()
     plan = deterministic_story_plan("vlog", analyses).model_copy(
         update={"caption_mode": CaptionMode.none}
@@ -175,7 +175,7 @@ def test_clean_vlog_rejects_caption_mode_none():
     errors = validate_story_plan(
         plan, allowed_segment_ids={a.segment_id for a in analyses}, analyses=analyses
     )
-    assert any("caption" in e for e in errors)
+    assert not any("requires captions" in e for e in errors)
 
 
 def test_create_story_plan_writes_files_on_api_failure(tmp_path: Path, monkeypatch):

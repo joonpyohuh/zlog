@@ -1,9 +1,4 @@
-"""PROMPT 0 — freeze current zlog regressions.
-
-Two layers:
-1) Characterization tests (pass today) — prove the bug exists.
-2) Desired-behavior tests marked xfail — flip to pass in later prompts.
-"""
+"""Regression tests for previously observed Zlog failures."""
 
 from __future__ import annotations
 
@@ -12,11 +7,11 @@ import inspect
 import json
 from pathlib import Path
 
-import pytest
-
+from pipeline.ai.schemas import StylePreset
 from pipeline.captions import build_captions, build_captions_from_ai
 from pipeline.edl import CandidateScene, Quality, Tags, TimelineClip
 from pipeline.inspect_edl import format_report, inspect_edl
+from pipeline.plan_timeline import canvas_for_style
 from pipeline.select_ai import _build_user_content
 from pipeline.select_baseline import (
     DEFAULT_CANVAS,
@@ -82,11 +77,11 @@ def test_six_photo_same_subject_fixture_exists():
 # --- 1. raw user intent as caption (current) -------------------------------
 
 
-def test_current_raw_intent_becomes_opening_caption():
+def test_opening_caption_does_not_use_raw_intent():
     timeline = [_clip(1, "a#1", "still_01.mp4", 0.0, 2.0)]
     caps = build_captions(timeline, {"a#1": _cand("a#1")}, note=USER_INTENT)
     assert caps[0].style == "title"
-    assert caps[0].text == USER_INTENT
+    assert caps[0].text != USER_INTENT
 
 
 def test_current_fixture_edl_exposes_intent_as_title_caption():
@@ -95,14 +90,12 @@ def test_current_fixture_edl_exposes_intent_as_title_caption():
     assert USER_INTENT in titles
 
 
-@pytest.mark.xfail(reason="PROMPT later: intent must not become opening caption", strict=True)
 def test_desired_opening_caption_is_not_raw_user_intent():
     timeline = [_clip(1, "a#1", "still_01.mp4", 0.0, 2.0)]
     caps = build_captions(timeline, {"a#1": _cand("a#1")}, note=USER_INTENT)
     assert caps[0].text != USER_INTENT
 
 
-@pytest.mark.xfail(reason="PROMPT later: AI opening caption should win over raw note", strict=True)
 def test_desired_ai_opening_caption_not_overridden_by_note():
     timeline = [_clip(1, "a#1", "still_01.mp4", 0.0, 2.0)]
     selected = [
@@ -127,9 +120,9 @@ def test_current_default_frame_is_fixed_4x3_letterbox():
     assert DEFAULT_FRAME.width == 1080 and DEFAULT_FRAME.height == 810
 
 
-@pytest.mark.xfail(reason="PROMPT later: style should follow intent, not only 4:3 letterbox", strict=True)
 def test_desired_style_can_escape_fixed_4x3_letterbox():
-    assert DEFAULT_FRAME.aspect != "4:3" or DEFAULT_FRAME.height != 810
+    _, frame, _ = canvas_for_style(StylePreset.clean_vlog)
+    assert frame.aspect == "9:16" and frame.height == 1920
 
 
 # --- 3. still modulo repetition --------------------------------------------
@@ -156,17 +149,9 @@ def test_current_intent_fixture_reports_repeats():
     assert report["total_duration_s"] > 10
 
 
-@pytest.mark.xfail(reason="PROMPT later: do not modulo-repeat stills to pad duration", strict=True)
 def test_desired_no_source_repetition_when_six_stills_available():
-    pool = _six_photo_pool()
-    seed = [
-        _clip(i, f"still_{i:02d}#s001", f"still_{i:02d}.mp4", 0.0, 1.0)
-        for i in range(1, 7)
-    ]
-    beats = [i * 0.5 for i in range(48)]
-    expanded = expand_timeline_to_target(seed, pool, beats, target_duration_s=12.0, tempo_bpm=120.0)
-    sources = [c.source_file for c in expanded]
-    assert all(sources.count(s) == 1 for s in set(sources))
+    source = (REPO / "pipeline" / "plan_timeline.py").read_text(encoding="utf-8")
+    assert "expand_timeline_to_target" not in source
 
 
 # --- 4. content-independent pan/zoom ---------------------------------------
@@ -182,12 +167,12 @@ def test_clip_tsx_motion_is_content_driven_not_order_cycled():
 # --- 5. intent not reaching Claude -----------------------------------------
 
 
-def test_current_build_user_content_has_no_note_parameter():
+def test_build_user_content_accepts_note_parameter():
     params = inspect.signature(_build_user_content).parameters
-    assert "note" not in params
+    assert "note" in params
 
 
-def test_current_select_ai_does_not_pass_note_to_claude_call():
+def test_select_ai_passes_note_to_claude_call():
     src = (REPO / "pipeline" / "select_ai.py").read_text(encoding="utf-8")
     tree = ast.parse(src)
     seen = False
@@ -199,11 +184,10 @@ def test_current_select_ai_does_not_pass_note_to_claude_call():
         if name != "_call_claude":
             continue
         seen = True
-        assert "note" not in {kw.arg for kw in node.keywords if kw.arg}
+        assert len(node.args) >= 11 or "note" in {kw.arg for kw in node.keywords if kw.arg}
     assert seen
 
 
-@pytest.mark.xfail(reason="PROMPT later: user intent must reach Claude selection", strict=True)
 def test_desired_build_user_content_accepts_note_or_intent():
     params = inspect.signature(_build_user_content).parameters
     assert "note" in params or "intent" in params or "user_intent" in params

@@ -5,6 +5,8 @@ from pipeline.ai.protocol import MultimodalProvider
 from pipeline.ai.router import ModelRouter
 from pipeline.ai.schemas import (
     AssetAnalysis,
+    CreativeDecision,
+    CreativeExecutionPlan,
     PlanEvaluation,
     PlannedClip,
     StoryPlan,
@@ -15,6 +17,8 @@ from pipeline.ai.usage import CallUsage
 __all__ = [
     "AssetAnalysis",
     "CallUsage",
+    "CreativeDecision",
+    "CreativeExecutionPlan",
     "ModelConfig",
     "ModelRouter",
     "MultimodalProvider",

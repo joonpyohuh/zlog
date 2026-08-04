@@ -10,6 +10,8 @@ only here — the LLM never emits a number that ends up as a timestamp.
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pipeline.edl import CandidateScene, Caption, TimelineClip
 
 MAX_CAPTION_CHARS = 24
@@ -98,7 +100,6 @@ def build_captions(
     if not timeline:
         return []
 
-    note = (note or "").strip()
     captions: list[Caption] = []
 
     # One caption slot per distinct segment_id, first occurrence wins.
@@ -111,7 +112,7 @@ def build_captions(
 
     first = hosts[0]
     first_tags = _tags(candidates_by_id, first.segment_id)
-    opening = _clip_text(note) if note else _opening_text(first_tags)
+    opening = _opening_text(first_tags)
     captions.append(_title_caption(first, opening))
 
     # Situational subtitles on up to 3 distinct middle clips, no repeats.
@@ -158,8 +159,6 @@ def build_captions_from_ai(
         by_first.setdefault(clip.segment_id, clip)
 
     captions: list[Caption] = []
-    note = (note or "").strip()
-
     ai_caps: dict[str, str] = {}
     title_text = ""
     closing_text = ""
@@ -179,7 +178,7 @@ def build_captions_from_ai(
 
     first = timeline[0]
     first_tags = _tags(candidates_by_id, first.segment_id)
-    opening = _clip_text(note) or title_text or _opening_text(first_tags)
+    opening = title_text or _opening_text(first_tags)
     captions.append(_title_caption(first, opening))
 
     last = timeline[-1] if len(timeline) > 1 else None
@@ -222,7 +221,11 @@ def _mid_text(tags) -> str:
 if __name__ == "__main__":
     from pipeline.edl import Quality, Tags
 
-    def _cand(seg: str, subject: str = "landscape", mood: str = "calm") -> CandidateScene:
+    def _cand(
+        seg: str,
+        subject: Literal["person", "food", "landscape", "object", "text"] = "landscape",
+        mood: Literal["bright", "calm", "lively", "moody"] = "calm",
+    ) -> CandidateScene:
         return CandidateScene(
             segment_id=seg,
             source_file="x.mp4",

@@ -49,7 +49,22 @@ export type TimelineClip = {
   overlay?: string | null;
   reuse_reason?: string | null;
   crop_confidence?: number | null;
+  entry_effect?: EffectId;
+  primary_effect?: EffectId;
+  exit_effect?: EffectId;
+  effect_reason?: string;
+  selection_reasons?: string[];
 };
+
+export type EffectId =
+  | 'clean_cut'
+  | 'micro_push_in'
+  | 'micro_pull_out'
+  | 'reaction_punch_in'
+  | 'blur_caption_focus'
+  | 'freeze_reaction_hold'
+  | 'soft_reveal'
+  | 'ambient_outro';
 
 export type Caption = {
   segment_id: string;
@@ -81,6 +96,7 @@ export type Edl = {
   captions?: Caption[];
   signature: Signature;
   style_preset?: string;
+  creative_execution_version?: string | null;
 };
 
 // Resolved-in-Node variants: resolve-props.mjs stages each clip's video and

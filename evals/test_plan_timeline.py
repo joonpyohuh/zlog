@@ -283,6 +283,34 @@ def test_validate_edl_passes(tmp_path: Path):
     assert problems == []
 
 
+def test_opening_callback_is_explicit_and_used_once(tmp_path: Path):
+    ids = [f"still_{i:02d}#s001" for i in range(1, 6)]
+    analyses = [
+        _analysis(
+            sid,
+            upload_index=i,
+            hook_potential=0.9 if i == 0 else 0.4,
+            emotional_value=0.75 if i == 0 else 0.45,
+        )
+        for i, sid in enumerate(ids)
+    ]
+    story = _story(ids, target_duration_sec=12.0)
+    work = _project(
+        tmp_path,
+        name="callback",
+        story=story,
+        analyses=analyses,
+        candidates=[_cand(sid) for sid in ids],
+    )
+    plan_timeline(work, "callback", BGM, force=True)
+    timeline = json.loads((work / "callback" / "timeline_plan.json").read_text(encoding="utf-8"))["plan"]["clips"]
+    creative = json.loads((work / "callback" / "creative_execution_plan.json").read_text(encoding="utf-8"))
+    assert [clip["segment_id"] for clip in timeline].count(ids[0]) == 2
+    assert timeline[-1]["reuse_reason"] == "opening_callback"
+    assert creative["callback"]["enabled"] is True
+    assert creative["callback"]["alternate_crop"] is True
+
+
 @pytest.mark.skipif(not BGM.exists(), reason="demo_track.wav missing")
 def test_bgm_fixture_present():
     assert BGM.with_suffix(".beats.json").exists()

@@ -28,6 +28,7 @@ from __future__ import annotations
 import base64
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import anthropic
 import click
@@ -154,6 +155,7 @@ def _build_user_content(
     feedback: list[str] | None,
     tags_text: str | None,
     taste_examples: list[taste.Example],
+    note: str | None = None,
 ) -> list[dict]:
     content = _taste_example_blocks(taste_examples)
     content += [_encode_image(sheets_dir / f) for f in sheet_files]
@@ -165,6 +167,11 @@ def _build_user_content(
         f"정확히 {n_cuts}개를 골라 순서(1~{n_cuts})를 정해서 submit_selection 도구로 제출해라.\n"
         f"사용 가능한 segment_id: {', '.join(sorted(valid_segment_ids))}"
     )
+    if note:
+        instruction += (
+            "\n\nUser editing intent (direction only; never copy it into captions):\n"
+            f"{note.strip()}"
+        )
     if feedback:
         instruction += "\n\n이전 제출은 검증에 실패했다. 아래 이유를 반드시 고쳐서 다시 제출해라:\n"
         instruction += "\n".join(f"- {p}" for p in feedback)
@@ -184,9 +191,17 @@ def _call_claude(
     feedback: list[str] | None,
     tags_text: str | None,
     taste_examples: list[taste.Example],
+    note: str | None = None,
 ) -> list[dict]:
     content = _build_user_content(
-        sheets_dir, sheet_files, n_cuts, valid_segment_ids, feedback, tags_text, taste_examples
+        sheets_dir,
+        sheet_files,
+        n_cuts,
+        valid_segment_ids,
+        feedback,
+        tags_text,
+        taste_examples,
+        note,
     )
     system: list[dict] = [{"type": "text", "text": system_prompt}]
     if taste_block:
@@ -194,14 +209,15 @@ def _call_claude(
     response = client.messages.create(
         model=MODEL,
         max_tokens=MAX_TOKENS,
-        system=system,
-        tools=[SUBMIT_SELECTION_TOOL],
+        system=cast(Any, system),
+        tools=cast(Any, [SUBMIT_SELECTION_TOOL]),
         tool_choice={"type": "tool", "name": "submit_selection"},
-        messages=[{"role": "user", "content": content}],
+        messages=cast(Any, [{"role": "user", "content": content}]),
     )
     for block in response.content:
         if block.type == "tool_use" and block.name == "submit_selection":
-            return block.input["selected"]
+            values = cast(dict[str, Any], block.input)
+            return cast(list[dict], values["selected"])
     raise RuntimeError("model response did not include a submit_selection tool call")
 
 
@@ -320,6 +336,7 @@ def select_ai(
         selected = _call_claude(
             client, system_prompt, taste_block, sheets_dir, sheet_files, n_cuts,
             valid_segment_ids, feedback, tags_text, taste_examples,
+            note,
         )
         edl, build_problems = _build_edl(
             selected,
@@ -351,6 +368,8 @@ def select_ai(
             "AI selection failed validation: " + "; ".join(problems[:4])
         )
 
+    if edl is None:
+        raise RuntimeError("AI selection did not produce an EDL")
     out_path = project_dir / "edl_ai.json"
     out_path.write_text(edl.model_dump_json(indent=2), encoding="utf-8")
     return out_path

@@ -16,6 +16,7 @@ from pipeline.audio_engine import (
     build_ducking_envelope,
     mix_bgm_with_source,
     run_audio_engine,
+    should_preserve_source_audio,
     write_ducking_graph,
 )
 from pipeline.edl import (
@@ -29,6 +30,21 @@ from pipeline.edl import (
 )
 
 SR = 22050
+
+
+def test_callback_does_not_repeat_original_audio() -> None:
+    normal = TimelineClip(
+        order=1,
+        segment_id="a",
+        source_file="a.mp4",
+        in_sec=0,
+        out_sec=1,
+    )
+    callback = normal.model_copy(
+        update={"order": 2, "reuse_reason": "opening_callback"}
+    )
+    assert should_preserve_source_audio(normal) is True
+    assert should_preserve_source_audio(callback) is False
 
 
 def _write_wav(path: Path, y: np.ndarray, sr: int = SR) -> None:

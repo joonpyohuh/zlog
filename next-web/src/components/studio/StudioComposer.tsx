@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useRef, useState, type KeyboardEvent} from 'react';
+import {useCallback, useEffect, useRef, useState, type KeyboardEvent} from 'react';
 
 type Attachment = {
   id: string;
@@ -78,10 +78,10 @@ export function StudioComposer({
   devModeDefault?: boolean;
 }) {
   const base = apiBase.replace(/\/$/, '');
-  const apiUrl = (path: string) => {
+  const apiUrl = useCallback((path: string) => {
     if (/^https?:\/\//i.test(path)) return path;
     return `${base}${path.startsWith('/') ? path : `/${path}`}`;
-  };
+  }, [base]);
 
   const [text, setText] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
@@ -111,7 +111,7 @@ export function StudioComposer({
       }
     }, 1200);
     return () => window.clearInterval(t);
-  }, [job, base]);
+  }, [job, apiUrl]);
 
   function addFiles(list: FileList | File[]) {
     const next = Array.from(list)

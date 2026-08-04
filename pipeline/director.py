@@ -334,10 +334,6 @@ def validate_story_plan(
     if leaks:
         errors.append(f"user brief leaked into caption/concept text: {leaks[:3]!r}")
 
-    # clean_vlog still needs captions (sparse, not none)
-    if plan.style_preset == StylePreset.clean_vlog and plan.caption_mode == CaptionMode.none:
-        errors.append("clean_vlog requires captions (caption_mode must not be none)")
-
     # Prefer not selecting entire redundancy groups when reuse is false
     if not plan.allow_asset_reuse:
         by_group: dict[str, list[str]] = {}

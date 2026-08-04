@@ -18,7 +18,6 @@ At most: code+Luna → optional Claude revise once → re-eval → baseline OR o
 from __future__ import annotations
 
 import json
-from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -191,11 +190,18 @@ def code_evaluate_plan(
 
     # 2) same segment repeated
     if clips and not story.allow_asset_reuse:
-        counts = Counter(c.segment_id for c in clips)
-        for sid, n in counts.items():
-            if n > 1:
+        by_segment: dict[str, list[Any]] = {}
+        for clip in clips:
+            by_segment.setdefault(clip.segment_id, []).append(clip)
+        for sid, repeated in by_segment.items():
+            allowed_callback = (
+                len(repeated) == 2
+                and repeated[-1].reuse_reason
+                in {"opening_callback", "visual_motif_callback", "narrative_payoff"}
+            )
+            if len(repeated) > 1 and not allowed_callback:
                 failures.append(
-                    _fail("segment_repeat", f"segment appears {n} times", sid)
+                    _fail("segment_repeat", f"segment appears {len(repeated)} times", sid)
                 )
 
     # 3) same redundancy group repeated
@@ -248,7 +254,7 @@ def code_evaluate_plan(
 
     # 6) unjustified chronology violation (body after cold-open hook)
     if len(clips) >= 3:
-        body = clips[1:]
+        body = [clip for clip in clips[1:] if not clip.reuse_reason]
         keys = []
         for c in body:
             a = by_id.get(c.segment_id)

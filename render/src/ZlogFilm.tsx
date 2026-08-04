@@ -13,6 +13,7 @@ import {CaptionOverlay} from './Caption';
 import {Clip} from './Clip';
 import {EndingCredit} from './EndingCredit';
 import {FilmLook} from './FilmLook';
+import {CreativeEffect} from './effects/CreativeEffect';
 import {ensureFontsLoaded} from './loadFonts';
 import {resolveStyle} from './style';
 import type {ZlogFilmProps} from './types';
@@ -90,7 +91,9 @@ export const ZlogFilm: React.FC<ZlogFilmProps> = ({edl}) => {
           durationInFrames={clipDuration}
           name={`${clip.order}-${clip.segment_id}`}
         >
-          <Clip clip={clip} frame={edl.frame} clipDurationInFrames={clipDuration} />
+          <CreativeEffect clip={clip} durationInFrames={clipDuration}>
+            <Clip clip={clip} frame={edl.frame} clipDurationInFrames={clipDuration} />
+          </CreativeEffect>
         </Sequence>
       ))}
 

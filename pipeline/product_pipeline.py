@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from pipeline.ai.config import ModelConfig, QualityMode, load_model_config
+from pipeline.creative_execution import finalize_comparison, preserve_previous_render
 from pipeline.execution import DagExecutor, PipelineTask, TaskState
 
 StageName = Literal[
@@ -219,6 +220,8 @@ def run_product_pipeline(
 
     project_dir = work_root / project
     project_dir.mkdir(parents=True, exist_ok=True)
+    if force:
+        preserve_previous_render(project_dir)
     if user_intent and user_intent.strip():
         (project_dir / "note.txt").write_text(user_intent.strip(), encoding="utf-8")
 
@@ -532,6 +535,7 @@ def run_product_pipeline(
     final_path = project_dir / "final.mp4"
     if not final_path.exists():
         raise RuntimeError("pipeline finished without final.mp4")
+    finalize_comparison(project_dir)
 
     # Persist run summary (no secrets)
     summary = PipelineResult(

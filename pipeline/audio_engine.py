@@ -54,6 +54,14 @@ ENVELOPE_DT = 0.03  # seconds between volume keyframes for asendcmd
 
 
 EventKind = Literal["speech", "nature", "sfx", "noise"]
+CALLBACK_REUSE_REASONS = frozenset(
+    {"opening_callback", "visual_motif_callback", "narrative_payoff"}
+)
+
+
+def should_preserve_source_audio(clip: Any) -> bool:
+    """Callbacks reuse the image, not the original audio beat."""
+    return clip.reuse_reason not in CALLBACK_REUSE_REASONS
 
 
 def _run_ffmpeg(args: list[str]) -> None:
@@ -321,7 +329,11 @@ def extract_timeline_source_audio(
             src = footage_dir / clip.source_file
             dur = clip.out_sec - clip.in_sec
             part = tmp_path / f"part_{i:03d}.wav"
-            if not src.exists() or not _has_audio_stream(src):
+            if (
+                not should_preserve_source_audio(clip)
+                or not src.exists()
+                or not _has_audio_stream(src)
+            ):
                 # silence for this cut
                 _run_ffmpeg(
                     [
@@ -409,7 +421,7 @@ def analyze_source_audio(
         }
 
     y, sr = librosa.load(str(extracted), sr=SR, mono=True)
-    events, summary = _classify_windows(y, sr)
+    events, summary = _classify_windows(y, int(sr))
     summary["timeline_duration_sec"] = round(timeline_dur, 3)
     summary["events"] = events
     summary["source_wav"] = str(extracted.as_posix())
