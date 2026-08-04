@@ -51,6 +51,7 @@ from pipeline.edl import (
     Canvas,
     Caption,
     Frame,
+    Signature,
     TimelineClip,
     save_edl,
     validate_edl,
@@ -259,33 +260,58 @@ def motion_for_analysis(a: AssetAnalysis | None, role: ClipRole) -> tuple[Motion
 
 
 def fit_mode_for_analysis(a: AssetAnalysis | None, style: StylePreset) -> FitMode:
-    if style in {StylePreset.y2k_4x3_letterbox, StylePreset.cinematic_16x9}:
-        return FitMode.contain if style == StylePreset.cinematic_16x9 else FitMode.cover
+    if style in {
+        StylePreset.y2k_camcorder,
+        StylePreset.y2k_4x3_letterbox,
+        StylePreset.cinematic_16x9,
+    }:
+        if a and a.crop_confidence < 0.35:
+            return FitMode.blurred_background_contain
+        return FitMode.cover if style != StylePreset.cinematic_16x9 else FitMode.contain
+    # clean vertical: prefer subject-aware cover; fall back when crop is unsafe
     if a and a.crop_confidence < 0.35:
-        return FitMode.contain
+        return FitMode.blurred_background_contain
     if a and (a.focus_width > 0.85 or a.focus_height > 0.85):
-        return FitMode.smart_crop
-    return FitMode.cover
+        return FitMode.subject_aware_cover
+    return FitMode.subject_aware_cover
+
+
+def aesthetic_allows_flash(style: StylePreset) -> bool:
+    return style in {StylePreset.y2k_camcorder, StylePreset.y2k_4x3_letterbox}
 
 
 def canvas_for_style(style: StylePreset) -> tuple[Canvas, Frame, Aesthetic]:
-    if style == StylePreset.y2k_4x3_letterbox:
+    if style in {StylePreset.y2k_camcorder, StylePreset.y2k_4x3_letterbox}:
         return (
             Canvas(width=1080, height=1920),
             Frame(aspect="4:3", width=1080, height=810, y_offset=555),
-            Aesthetic(lut="ccd_cool_01.cube", grain=0.15, bloom=0.2),
+            Aesthetic(
+                lut="ccd_cool_01.cube",
+                grain=0.15,
+                bloom=0.2,
+                scanlines=True,
+                camcorder_osd=True,
+                allow_flash=True,
+            ),
         )
     if style == StylePreset.cinematic_16x9:
         return (
             Canvas(width=1920, height=1080),
             Frame(aspect="16:9", width=1920, height=1080, y_offset=0),
-            Aesthetic(lut="ccd_cool_01.cube", grain=0.08, bloom=0.1),
+            Aesthetic(lut="", grain=0.0, bloom=0.0),
         )
-    # clean_vlog / vertical_full / soft_vlog / punchy_short → vertical
+    # clean_vlog / vertical_full / soft_vlog / punchy_short → full 9:16, natural look
     return (
         Canvas(width=1080, height=1920),
         Frame(aspect="9:16", width=1080, height=1920, y_offset=0),
-        Aesthetic(lut="ccd_cool_01.cube", grain=0.06, bloom=0.08),
+        Aesthetic(
+            lut="",
+            grain=0.0,
+            bloom=0.0,
+            scanlines=False,
+            camcorder_osd=False,
+            allow_flash=False,
+        ),
     )
 
 
@@ -362,6 +388,7 @@ def build_sparse_captions(
                     style="subtitle",
                     position="bottom",
                     start_offset_sec=0.15,
+                    grounding="visually_grounded_facts",
                 )
             )
 
@@ -378,6 +405,7 @@ def build_sparse_captions(
                 style="lower_third",
                 position="bottom",
                 start_offset_sec=0.1,
+                grounding="mood",
             )
         )
     elif len(timeline) > 2 and facts[1:] and story.caption_mode == CaptionMode.dense:
@@ -389,6 +417,7 @@ def build_sparse_captions(
                 style="subtitle",
                 position="bottom",
                 start_offset_sec=0.1,
+                grounding="visually_grounded_facts",
             )
         )
     return captions
@@ -688,6 +717,8 @@ def plan_timeline(
                 reuse_reason=None,
             )
         )
+        if not aesthetic_allows_flash(story.style_preset):
+            edl_transition = "cut"
         timeline.append(
             TimelineClip(
                 order=order,
@@ -705,16 +736,26 @@ def plan_timeline(
                 motion_strength=strength,
                 overlay=None,
                 reuse_reason=None,
+                crop_confidence=a.crop_confidence if a else None,
             )
         )
 
     timeline = assign_transitions(timeline)
-    # Re-apply role flash preferences after assign_transitions overwrote some
-    for clip, p in zip(timeline, planned, strict=True):
-        if p.role == ClipRole.peak and clip.order > 1:
-            clip.transition = "flash"
-
     canvas, frame, aesthetic = canvas_for_style(story.style_preset)
+    if aesthetic.allow_flash:
+        for clip, p in zip(timeline, planned, strict=True):
+            if p.role == ClipRole.peak and clip.order > 1:
+                clip.transition = "flash"
+    else:
+        for clip in timeline:
+            clip.transition = "cut"
+
+    # Ending credit off for clean_vlog unless style asks for camcorder kit
+    signature = (
+        DEFAULT_SIGNATURE
+        if aesthetic.camcorder_osd
+        else Signature(enabled=False, text="", duration=0.0)
+    )
     captions = build_sparse_captions(story, timeline, analyses)
     # Attach caption text onto PlannedClip sparingly
     cap_by_sid = {c.segment_id: c.text for c in captions}
@@ -756,7 +797,7 @@ def plan_timeline(
         audio=Audio(bgm_id=bgm_track.stem, start_sec=0.0, volume=AUDIO_VOLUME),
         timeline=timeline,
         captions=captions,
-        signature=DEFAULT_SIGNATURE,
+        signature=signature,
         style_preset=story.style_preset.value,
     )
 

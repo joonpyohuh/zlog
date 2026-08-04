@@ -99,6 +99,10 @@ class Aesthetic(BaseModel):
     lut: str
     grain: float
     bloom: float
+    # Render toggles (PROMPT 7) — clean_vlog keeps these off by default.
+    scanlines: bool = False
+    camcorder_osd: bool = False
+    allow_flash: bool = False
 
 
 class Audio(BaseModel):
@@ -134,6 +138,7 @@ class TimelineClip(BaseModel):
     motion_strength: float = 0.35
     overlay: str | None = None
     reuse_reason: str | None = None
+    crop_confidence: float | None = None
 
 
 class Caption(BaseModel):
@@ -151,6 +156,8 @@ class Caption(BaseModel):
     position: Literal["top", "center", "bottom"] = "bottom"
     start_offset_sec: float = 0.0
     end_offset_sec: float | None = None  # None = until end of that clip
+    # Required for Remotion to show the caption (PROMPT 7) — empty = hide.
+    grounding: str = ""
 
 
 class Signature(BaseModel):

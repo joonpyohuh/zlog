@@ -19,6 +19,9 @@ export type Aesthetic = {
   lut: string;
   grain: number;
   bloom: number;
+  scanlines?: boolean;
+  camcorder_osd?: boolean;
+  allow_flash?: boolean;
 };
 
 export type Audio = {
@@ -45,6 +48,7 @@ export type TimelineClip = {
   motion_strength?: number;
   overlay?: string | null;
   reuse_reason?: string | null;
+  crop_confidence?: number | null;
 };
 
 export type Caption = {
@@ -55,6 +59,8 @@ export type Caption = {
   position: 'top' | 'center' | 'bottom';
   start_offset_sec: number;
   end_offset_sec: number | null;
+  /** Empty/missing → Remotion hides the caption (PROMPT 7). */
+  grounding?: string;
 };
 
 export type Signature = {

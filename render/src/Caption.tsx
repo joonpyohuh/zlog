@@ -4,20 +4,26 @@ import {FONT_BODY, FONT_DISPLAY} from './loadFonts';
 import type {Caption as CaptionData, Frame} from './types';
 
 /**
- * Vlog-style burned-in captions, positioned relative to the 4:3 picture
- * area (not the letterboxed canvas):
- *  - title:       big Y2K display type with a chromatic split shadow,
- *                 scale-pop entrance — the film's opening card
- *  - subtitle:    Korean vlog box caption (white bold on a dark pill),
- *                 slides up with a spring
- *  - lower_third: smaller, quieter pill for asides / the closing line
+ * Sparse vlog captions with vertical safe-area padding.
+ * Captions without grounding metadata are not rendered (PROMPT 7).
  */
 export const CaptionOverlay: React.FC<{caption: CaptionData; frame: Frame}> = ({
   caption,
   frame,
 }) => {
   const current = useCurrentFrame();
-  const {fps, durationInFrames, width} = useVideoConfig();
+  const {fps, durationInFrames, width, height} = useVideoConfig();
+
+  const grounding = (caption.grounding || '').trim();
+  if (!grounding) {
+    return null;
+  }
+
+  // Reject raw edit-brief leakage heuristics (common Korean/English phrases).
+  const text = (caption.text || '').trim();
+  if (!text || looksLikeEditBrief(text)) {
+    return null;
+  }
 
   const pop = spring({frame: current, fps, config: {damping: 200, stiffness: 240}});
   const fadeFrames = Math.max(1, Math.round(fps * 0.2));
@@ -30,49 +36,40 @@ export const CaptionOverlay: React.FC<{caption: CaptionData; frame: Frame}> = ({
         });
   const opacity = Math.min(pop, 1) * fadeOut;
 
+  // Safe area ~8% of the shorter canvas edge for vertical shorts.
+  const safe = Math.round(Math.min(width, height) * 0.08);
+
   const positionStyle: React.CSSProperties =
     caption.position === 'top'
-      ? {justifyContent: 'flex-start', paddingTop: frame.height * 0.12}
+      ? {justifyContent: 'flex-start', paddingTop: Math.max(safe, frame.height * 0.1)}
       : caption.position === 'center'
         ? {justifyContent: 'center'}
-        : {justifyContent: 'flex-end', paddingBottom: frame.height * 0.09};
+        : {justifyContent: 'flex-end', paddingBottom: Math.max(safe, frame.height * 0.1)};
 
   let inner: React.ReactNode;
   if (caption.style === 'title') {
-    const scale = interpolate(pop, [0, 1], [0.92, 1]);
+    const scale = interpolate(pop, [0, 1], [0.96, 1]);
     inner = (
       <div
         style={{
           transform: `scale(${scale})`,
           color: 'white',
           fontFamily: caption.font === 'display' ? FONT_DISPLAY : FONT_BODY,
-          fontSize: 68,
+          fontSize: 52,
           fontWeight: 700,
-          letterSpacing: 6,
+          letterSpacing: 2,
           textAlign: 'center',
-          lineHeight: 1.2,
-          maxWidth: '86%',
+          lineHeight: 1.25,
+          maxWidth: '82%',
           whiteSpace: 'pre-wrap',
-          textShadow:
-            '3px 0 rgba(255,60,90,0.45), -3px 0 rgba(60,220,255,0.45), 0 4px 24px rgba(0,0,0,0.6)',
+          textShadow: '0 2px 16px rgba(0,0,0,0.55)',
         }}
       >
-        {caption.text}
-        <div
-          style={{
-            marginTop: 18,
-            height: 3,
-            width: '38%',
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            backgroundColor: 'rgba(255,255,255,0.85)',
-            boxShadow: '0 0 12px rgba(255,255,255,0.5)',
-          }}
-        />
+        {text}
       </div>
     );
   } else {
-    const lift = interpolate(pop, [0, 1], [18, 0]);
+    const lift = interpolate(pop, [0, 1], [12, 0]);
     const small = caption.style === 'lower_third';
     inner = (
       <div
@@ -80,20 +77,20 @@ export const CaptionOverlay: React.FC<{caption: CaptionData; frame: Frame}> = ({
           transform: `translateY(${lift}px)`,
           color: 'white',
           fontFamily: FONT_BODY,
-          fontSize: small ? 32 : 40,
-          fontWeight: 700,
-          letterSpacing: 0.5,
+          fontSize: small ? 30 : 36,
+          fontWeight: 650,
+          letterSpacing: 0.3,
           textAlign: 'center',
           lineHeight: 1.35,
-          maxWidth: '84%',
+          maxWidth: '78%',
           whiteSpace: 'pre-wrap',
-          backgroundColor: small ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.58)',
-          borderRadius: 16,
-          padding: small ? '10px 26px' : '14px 32px',
-          boxShadow: '0 4px 18px rgba(0,0,0,0.35)',
+          backgroundColor: small ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.5)',
+          borderRadius: 14,
+          padding: small ? '10px 22px' : '12px 28px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
         }}
       >
-        {caption.text}
+        {text}
       </div>
     );
   }
@@ -111,6 +108,9 @@ export const CaptionOverlay: React.FC<{caption: CaptionData; frame: Frame}> = ({
         alignItems: 'center',
         pointerEvents: 'none',
         opacity,
+        paddingLeft: safe,
+        paddingRight: safe,
+        boxSizing: 'border-box',
         ...positionStyle,
       }}
     >
@@ -118,3 +118,11 @@ export const CaptionOverlay: React.FC<{caption: CaptionData; frame: Frame}> = ({
     </div>
   );
 };
+
+export function looksLikeEditBrief(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (t.length > 48 && (t.includes('만들어') || t.includes('브이로그로'))) return true;
+  if (t.includes('편집 지시') || t.includes('editing brief')) return true;
+  if (/^(please |make me |만들어줘)/i.test(t)) return true;
+  return false;
+}

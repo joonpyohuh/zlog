@@ -23,6 +23,7 @@ export type Mood =
   | 'energetic';
 export type StylePreset =
   | 'clean_vlog'
+  | 'y2k_camcorder'
   | 'y2k_4x3_letterbox'
   | 'vertical_full'
   | 'cinematic_16x9'
@@ -36,7 +37,12 @@ export type TargetPlatform =
   | 'generic';
 export type CaptionMode = 'none' | 'sparse' | 'dense' | 'hook_only';
 export type ClipRole = 'opening' | 'body' | 'peak' | 'closing' | 'bridge';
-export type FitMode = 'cover' | 'contain' | 'smart_crop';
+export type FitMode =
+  | 'cover'
+  | 'contain'
+  | 'smart_crop'
+  | 'subject_aware_cover'
+  | 'blurred_background_contain';
 export type MotionKind =
   | 'none'
   | 'ken_burns_in'

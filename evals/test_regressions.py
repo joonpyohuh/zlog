@@ -172,17 +172,11 @@ def test_desired_no_source_repetition_when_six_stills_available():
 # --- 4. content-independent pan/zoom ---------------------------------------
 
 
-def test_current_clip_tsx_motion_is_order_cycled():
-    src = (REPO / "render" / "src" / "Clip.tsx").read_text(encoding="utf-8")
-    assert "clip.order % 2" in src
-    assert "PAN_DIRS[clip.order % PAN_DIRS.length]" in src
-
-
-@pytest.mark.xfail(reason="PROMPT later: motion must use content/tags, not cut order", strict=True)
-def test_desired_clip_motion_not_driven_only_by_order():
+def test_clip_tsx_motion_is_content_driven_not_order_cycled():
     src = (REPO / "render" / "src" / "Clip.tsx").read_text(encoding="utf-8")
     assert "clip.order % 2" not in src
     assert "PAN_DIRS[clip.order % PAN_DIRS.length]" not in src
+    assert "clip.motion" in src
 
 
 # --- 5. intent not reaching Claude -----------------------------------------

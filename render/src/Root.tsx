@@ -13,12 +13,20 @@ const DEFAULT_EDL: ResolvedEdl = {
   version: '1.0',
   generator: 'baseline',
   canvas: {width: 1080, height: 1920},
-  frame: {aspect: '4:3', width: 1080, height: 810, y_offset: 555},
-  aesthetic: {lut: 'ccd_cool_01.cube', grain: 0.15, bloom: 0.2},
+  frame: {aspect: '9:16', width: 1080, height: 1920, y_offset: 0},
+  aesthetic: {
+    lut: '',
+    grain: 0,
+    bloom: 0,
+    scanlines: false,
+    camcorder_osd: false,
+    allow_flash: false,
+  },
   audio: {bgm_id: 'placeholder', start_sec: 0, volume: 0.8, src: ''},
   timeline: [],
   captions: [],
-  signature: {enabled: true, text: 'directed by zlog', duration: 2.0},
+  signature: {enabled: false, text: 'directed by zlog', duration: 2.0},
+  style_preset: 'clean_vlog',
 };
 
 // Runs inside Remotion's bundled (browser) context — no Node built-ins

@@ -130,9 +130,9 @@ def test_default_style_is_clean_vlog_without_y2k_request():
 
 
 def test_y2k_only_when_brief_asks():
-    assert style_from_brief("Y2K CCD camcorder look please") == StylePreset.y2k_4x3_letterbox
+    assert style_from_brief("Y2K CCD camcorder look please") == StylePreset.y2k_camcorder
     plan = deterministic_story_plan("make it y2k retro ccd", _few_photos())
-    assert plan.style_preset == StylePreset.y2k_4x3_letterbox
+    assert plan.style_preset == StylePreset.y2k_camcorder
 
 
 def test_validate_rejects_unknown_and_duplicate_and_leak():

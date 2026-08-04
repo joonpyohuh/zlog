@@ -14,6 +14,7 @@ import {Clip} from './Clip';
 import {EndingCredit} from './EndingCredit';
 import {FilmLook} from './FilmLook';
 import {ensureFontsLoaded} from './loadFonts';
+import {resolveStyle} from './style';
 import type {ZlogFilmProps} from './types';
 
 const BGM_FADE_OUT_S = 1;
@@ -28,14 +29,12 @@ const FlashIn: React.FC = () => {
   return <AbsoluteFill style={{backgroundColor: 'white', opacity}} />;
 };
 
-/** Root composition: unfolds the EDL's timeline into Sequences with the
- * CCD camcorder OSD + film look running over the picture, then the ending
- * credit, with BGM running underneath the whole thing. */
+/** Root composition: timeline Sequences + style-gated overlays. */
 export const ZlogFilm: React.FC<ZlogFilmProps> = ({edl}) => {
   const {fps, durationInFrames} = useVideoConfig();
-
-  // Idempotent; also triggered at module import (see loadFonts.ts).
   void ensureFontsLoaded();
+
+  const style = resolveStyle(edl);
 
   const orderedClips = [...edl.timeline].sort((a, b) => a.order - b.order);
   let cursor = 0;
@@ -47,14 +46,20 @@ export const ZlogFilm: React.FC<ZlogFilmProps> = ({edl}) => {
   });
   const clipsTotalFrames = cursor;
 
-  // First timeline occurrence of each segment_id (matches captions.py / validate_edl).
   const bySegment = new Map<string, (typeof placedClips)[number]>();
   for (const placed of placedClips) {
     if (!bySegment.has(placed.clip.segment_id)) {
       bySegment.set(placed.clip.segment_id, placed);
     }
   }
-  const placedCaptions = (edl.captions ?? []).flatMap((caption, i) => {
+
+  // Sparse captions: keep at most 3 on screen timeline; require grounding.
+  const groundedCaptions = (edl.captions ?? []).filter(
+    (c) => (c.grounding || '').trim().length > 0 && (c.text || '').trim().length > 0,
+  );
+  const sparseCaptions = groundedCaptions.slice(0, 3);
+
+  const placedCaptions = sparseCaptions.flatMap((caption, i) => {
     const host = bySegment.get(caption.segment_id);
     if (!host) return [];
     const clipDurSec = host.clip.out_sec - host.clip.in_sec;
@@ -72,7 +77,8 @@ export const ZlogFilm: React.FC<ZlogFilmProps> = ({edl}) => {
     ];
   });
 
-  const signatureFrames = edl.signature.enabled ? Math.round(edl.signature.duration * fps) : 0;
+  const signatureFrames =
+    style.endingCredit && edl.signature.enabled ? Math.round(edl.signature.duration * fps) : 0;
   const fadeOutFrames = Math.round(BGM_FADE_OUT_S * fps);
 
   return (
@@ -88,29 +94,35 @@ export const ZlogFilm: React.FC<ZlogFilmProps> = ({edl}) => {
         </Sequence>
       ))}
 
-      {/* film texture + camcorder OSD over the picture, not the credit */}
-      {clipsTotalFrames > 0 && (
+      {style.filmLook && clipsTotalFrames > 0 && (
         <Sequence from={0} durationInFrames={clipsTotalFrames} name="film-look">
           <AbsoluteFill style={{pointerEvents: 'none'}}>
             <FilmLook frame={edl.frame} aesthetic={edl.aesthetic} />
+          </AbsoluteFill>
+        </Sequence>
+      )}
+
+      {style.camcorderOsd && clipsTotalFrames > 0 && (
+        <Sequence from={0} durationInFrames={clipsTotalFrames} name="camcorder-osd">
+          <AbsoluteFill style={{pointerEvents: 'none'}}>
             <CamcorderOverlay frame={edl.frame} shotDate={edl.shot_date} />
           </AbsoluteFill>
         </Sequence>
       )}
 
-      {/* white flash on section-boundary cuts */}
-      {placedClips
-        .filter(({clip}) => clip.transition === 'flash')
-        .map(({clip, from}) => (
-          <Sequence
-            key={`flash-${clip.order}`}
-            from={from}
-            durationInFrames={FLASH_FRAMES + 1}
-            name={`flash-${clip.order}`}
-          >
-            <FlashIn />
-          </Sequence>
-        ))}
+      {style.allowFlash &&
+        placedClips
+          .filter(({clip}) => clip.transition === 'flash')
+          .map(({clip, from}) => (
+            <Sequence
+              key={`flash-${clip.order}`}
+              from={from}
+              durationInFrames={FLASH_FRAMES + 1}
+              name={`flash-${clip.order}`}
+            >
+              <FlashIn />
+            </Sequence>
+          ))}
 
       {placedCaptions.map(({key, caption, from, durationInFrames: capDur}) => (
         <Sequence key={key} from={from} durationInFrames={capDur} name={`caption-${key}`}>
@@ -118,7 +130,7 @@ export const ZlogFilm: React.FC<ZlogFilmProps> = ({edl}) => {
         </Sequence>
       ))}
 
-      {edl.signature.enabled && (
+      {signatureFrames > 0 && (
         <Sequence
           from={durationInFrames - signatureFrames}
           durationInFrames={signatureFrames}

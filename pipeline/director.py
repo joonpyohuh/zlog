@@ -118,7 +118,7 @@ def max_allowed_duration_sec(n_selected: int) -> float:
 
 def style_from_brief(user_intent: str) -> StylePreset:
     if Y2K_HINT.search(user_intent or ""):
-        return StylePreset.y2k_4x3_letterbox
+        return StylePreset.y2k_camcorder
     return StylePreset.clean_vlog
 
 

@@ -48,7 +48,8 @@ class Mood(str, Enum):
 
 class StylePreset(str, Enum):
     clean_vlog = "clean_vlog"
-    y2k_4x3_letterbox = "y2k_4x3_letterbox"
+    y2k_camcorder = "y2k_camcorder"
+    y2k_4x3_letterbox = "y2k_4x3_letterbox"  # alias of y2k_camcorder
     vertical_full = "vertical_full"
     cinematic_16x9 = "cinematic_16x9"
     soft_vlog = "soft_vlog"
@@ -82,6 +83,8 @@ class FitMode(str, Enum):
     cover = "cover"
     contain = "contain"
     smart_crop = "smart_crop"
+    subject_aware_cover = "subject_aware_cover"
+    blurred_background_contain = "blurred_background_contain"
 
 
 class MotionKind(str, Enum):

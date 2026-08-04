@@ -227,7 +227,15 @@ def _stage_grade(project_dir: Path, force: bool, **_) -> None:
     if not edl_path.exists():
         edl_path = project_dir / "edl_baseline.json"
     edl = json.loads(edl_path.read_text(encoding="utf-8"))
-    lut_path = REPO_ROOT / "assets" / "luts" / edl["aesthetic"]["lut"]
+    lut_name = (edl.get("aesthetic") or {}).get("lut") or ""
+    # clean_vlog: natural color — skip forced LUT, just copy the render.
+    if not str(lut_name).strip():
+        import shutil
+
+        shutil.copy2(rendered, out)
+        click.echo(f"  grade: no LUT (natural color) → {out}")
+        return
+    lut_path = REPO_ROOT / "assets" / "luts" / lut_name
     grade_stage.apply_lut(rendered, lut_path, out)
 
 
