@@ -1,8 +1,4 @@
-"""Hybrid AI contracts — schemas + multimodal providers.
-
-Not yet wired into server.py / select_ai.py. Existing Claude paths keep
-running unchanged until a later prompt swaps them in.
-"""
+"""Hybrid AI contracts — schemas + multimodal providers + agent handoff protocol."""
 
 from pipeline.ai.config import ModelConfig, load_model_config
 from pipeline.ai.protocol import MultimodalProvider
