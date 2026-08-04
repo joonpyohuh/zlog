@@ -9,7 +9,8 @@ from typing import Literal
 from dotenv import load_dotenv
 
 ProviderName = Literal["anthropic", "openai"]
-QualityMode = Literal["economy", "balanced", "max"]
+# premium = Sol repair path; max is treated as premium alias.
+QualityMode = Literal["economy", "balanced", "max", "premium"]
 
 
 @dataclass(frozen=True)
@@ -35,9 +36,13 @@ def _provider(name: str, default: ProviderName) -> ProviderName:
 
 def _quality(name: str, default: QualityMode) -> QualityMode:
     value = (os.getenv(name) or default).strip().lower()
-    if value not in ("economy", "balanced", "max"):
-        raise ValueError(f"{name} must be economy|balanced|max, got {value!r}")
+    if value not in ("economy", "balanced", "max", "premium"):
+        raise ValueError(f"{name} must be economy|balanced|max|premium, got {value!r}")
     return value  # type: ignore[return-value]
+
+
+def is_premium_mode(mode: QualityMode | str) -> bool:
+    return str(mode).strip().lower() in ("premium", "max")
 
 
 def load_model_config(*, load_env: bool = True) -> ModelConfig:

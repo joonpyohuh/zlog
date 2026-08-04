@@ -23,6 +23,7 @@ from pipeline.ai.schemas import (
     AssetAnalysis,
     PlanEvaluation,
     StoryPlan,
+    TimelinePlan,
     story_plan_against_candidates,
 )
 from pipeline.ai.usage import CallUsage, UsageTimer, record_usage
@@ -140,14 +141,20 @@ class AnthropicProvider:
         analyses: list[AssetAnalysis],
         allowed_segment_ids: set[str],
         model: str | None = None,
+        timeline: TimelinePlan | None = None,
+        image_paths: list[Path] | None = None,
     ) -> tuple[PlanEvaluation, CallUsage]:
         model_id = model or self.default_model
-        content = [
+        timeline_blob = timeline.model_dump_json() if timeline is not None else "{}"
+        content: list[dict[str, Any]] = [
             {
                 "type": "text",
                 "text": (
+                    "You are an independent plan EVALUATOR, not a new director.\n"
+                    "Cite exact segment_ids. Do not invent timestamps or IDs.\n\n"
                     f"User intent:\n{user_intent}\n\n"
                     f"Story plan:\n{plan.model_dump_json()}\n\n"
+                    f"TimelinePlan:\n{timeline_blob}\n\n"
                     f"Analyses:\n{json.dumps([a.model_dump(mode='json') for a in analyses], ensure_ascii=False)}\n"
                     f"Allowed segment_ids: {sorted(allowed_segment_ids)}\n"
                     "Independently evaluate. Flag prompt leakage if intent text "
@@ -155,6 +162,8 @@ class AnthropicProvider:
                 ),
             }
         ]
+        for path in image_paths or []:
+            content.append(encode_image_block(path))
         raw, usage = self._tool_call(
             model=model_id,
             tools=[SUBMIT_PLAN_EVALUATION_TOOL],

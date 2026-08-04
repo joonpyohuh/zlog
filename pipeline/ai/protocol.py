@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
-from pipeline.ai.schemas import AssetAnalysis, PlanEvaluation, StoryPlan
+from pipeline.ai.schemas import AssetAnalysis, PlanEvaluation, StoryPlan, TimelinePlan
 from pipeline.ai.usage import CallUsage
 
 
@@ -41,6 +41,8 @@ class MultimodalProvider(Protocol):
         analyses: list[AssetAnalysis],
         allowed_segment_ids: set[str],
         model: str | None = None,
+        timeline: TimelinePlan | None = None,
+        image_paths: list[Path] | None = None,
     ) -> tuple[PlanEvaluation, CallUsage]: ...
 
     def repair_story_plan(

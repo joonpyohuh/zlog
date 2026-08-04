@@ -9,7 +9,7 @@ from pipeline.ai.anthropic_provider import AnthropicProvider
 from pipeline.ai.config import ModelConfig, load_model_config
 from pipeline.ai.openai_provider import OpenAIProvider
 from pipeline.ai.protocol import MultimodalProvider
-from pipeline.ai.schemas import AssetAnalysis, PlanEvaluation, StoryPlan
+from pipeline.ai.schemas import AssetAnalysis, PlanEvaluation, StoryPlan, TimelinePlan
 from pipeline.ai.usage import CallUsage
 
 
@@ -95,6 +95,8 @@ class ModelRouter:
         plan: StoryPlan,
         analyses: list[AssetAnalysis],
         allowed_segment_ids: set[str],
+        timeline: TimelinePlan | None = None,
+        image_paths: list[Path] | None = None,
     ) -> tuple[PlanEvaluation, CallUsage]:
         provider = self._provider(self.config.evaluator_provider)
         return provider.evaluate_plan(
@@ -103,6 +105,8 @@ class ModelRouter:
             analyses=analyses,
             allowed_segment_ids=allowed_segment_ids,
             model=self.config.evaluator_model,
+            timeline=timeline,
+            image_paths=image_paths,
         )
 
     def repair_story_plan(

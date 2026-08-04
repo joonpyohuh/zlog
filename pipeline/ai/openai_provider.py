@@ -13,6 +13,7 @@ from pipeline.ai.schemas import (
     AssetAnalysis,
     PlanEvaluation,
     StoryPlan,
+    TimelinePlan,
     story_plan_against_candidates,
 )
 from pipeline.ai.usage import CallUsage, UsageTimer, record_usage
@@ -146,21 +147,51 @@ class OpenAIProvider:
         analyses: list[AssetAnalysis],
         allowed_segment_ids: set[str],
         model: str | None = None,
+        timeline: TimelinePlan | None = None,
+        image_paths: list[Path] | None = None,
     ) -> tuple[PlanEvaluation, CallUsage]:
         model_id = model or self.default_model
-        content = [
+        timeline_blob = timeline.model_dump_json() if timeline is not None else "{}"
+        summary = [
+            {
+                "segment_id": a.segment_id,
+                "subjects": a.subjects,
+                "scene": getattr(a.scene, "value", a.scene),
+                "shot_type": getattr(a.shot_type, "value", a.shot_type),
+                "mood": getattr(a.mood, "value", a.mood),
+                "hook_potential": a.hook_potential,
+                "narrative_value": a.narrative_value,
+                "redundancy_group": a.redundancy_group,
+                "crop_confidence": a.crop_confidence,
+                "visually_grounded_facts": (a.visually_grounded_facts or [])[:4],
+                "upload_index": a.upload_index,
+                "capture_time": a.capture_time,
+                "uncertainty": a.uncertainty,
+            }
+            for a in analyses
+        ]
+        content: list[dict[str, Any]] = [
             {
                 "type": "input_text",
                 "text": (
-                    f"User intent:\n{user_intent}\n\n"
-                    f"Plan:\n{plan.model_dump_json()}\n\n"
-                    f"Analyses:\n{json.dumps([a.model_dump(mode='json') for a in analyses], ensure_ascii=False)}\n"
+                    "You are an independent plan EVALUATOR, not a new director.\n"
+                    "Do not invent timestamps, new source scenes, or unknown segment_ids.\n"
+                    "Do not demand expensive revisions for minor taste differences.\n"
+                    "When reporting failures, cite exact segment_id values.\n\n"
+                    f"User edit intent (NOT on-screen text):\n{user_intent}\n\n"
+                    f"StoryPlan:\n{plan.model_dump_json()}\n\n"
+                    f"TimelinePlan:\n{timeline_blob}\n\n"
+                    f"Summarized AssetAnalysis:\n{json.dumps(summary, ensure_ascii=False)}\n"
                     f"Allowed segment_ids: {sorted(allowed_segment_ids)}\n"
-                    "Independently evaluate. Flag prompt leakage if the user intent "
-                    "is used as an on-screen caption. Return PlanEvaluation JSON."
+                    "Score consistency, hook strength, chronology, visual variety, "
+                    "redundancy, caption grounding, prompt leakage, crop safety, "
+                    "style consistency, and duration suitability. "
+                    "Return PlanEvaluation JSON."
                 ),
             }
         ]
+        for path in image_paths or []:
+            content.append({"type": "input_image", "image_url": encode_image_data_url(path)})
         raw, usage = self._structured_call(
             model=model_id,
             content=content,
