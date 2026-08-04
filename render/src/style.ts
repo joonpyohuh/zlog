@@ -67,6 +67,20 @@ export function effectiveFitMode(
   return fitMode || 'subject_aware_cover';
 }
 
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v));
+}
+
+/** CSS object-position from normalized focus (subject-aware cover). */
+export function objectPositionCss(focusX: number, focusY: number): string {
+  return `${clamp01(focusX) * 100}% ${clamp01(focusY) * 100}%`;
+}
+
+/** object-fit for PlannedClip.fit_mode (blurred contain shows full frame in front). */
+export function objectFitForMode(fit: string): 'contain' | 'cover' {
+  return fit === 'contain' || fit === 'blurred_background_contain' ? 'contain' : 'cover';
+}
+
 export function aestheticDefaults(preset: StylePresetName): Aesthetic {
   if (preset === 'y2k_camcorder' || preset === 'y2k_4x3_letterbox') {
     return {

@@ -71,6 +71,10 @@ class EvidenceSegment(BaseModel):
     end_sec: float
     duration: float
     evidence: list[EvidenceFrame]
+    # Optional proxy frame size (full-bleed stills / video) — defaults keep old fixtures valid
+    source_width: int | None = None
+    source_height: int | None = None
+    source_aspect_ratio: float | None = None
 
 
 class SourceMeta(BaseModel):
@@ -671,6 +675,9 @@ def run_evidence(
         cap = cv2.VideoCapture(str(video_path))
         try:
             fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0) or 30.0
+            src_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0) or None
+            src_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0) or None
+            src_ar = round(src_w / src_h, 6) if src_w and src_h else None
             meta = source_meta[source_file]
             for scene in scenes:
                 frames, feats = extract_segment_evidence(cap, scene, fps, project_dir)
@@ -687,6 +694,9 @@ def run_evidence(
                         end_sec=scene.end_sec,
                         duration=scene.duration,
                         evidence=frames,
+                        source_width=src_w,
+                        source_height=src_h,
+                        source_aspect_ratio=src_ar,
                     )
                 )
                 out_features.append(feats)
