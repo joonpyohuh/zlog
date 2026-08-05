@@ -37,6 +37,9 @@ Same `run_product_pipeline` stages. Flags: `--quality-mode`, `--baseline`, `--in
 | `segments.json` | split |
 | `evidence_*`, `deterministic_features.json` | evidence |
 | `candidates.json` | filter |
+| `perception_scan.json`, `boundary_candidates.json`, `perception_routes.json` | adaptive perception local passes |
+| `boundary_decisions.json`, `hierarchical_timeline.json` | goal-conditioned judgment and hierarchy |
+| `perception_cost_report.json`, `perception_cache.json` | perception observability and stage cache |
 | `asset_analyses.json` | analyze_assets |
 | `story_plan.json` | director |
 | `timeline_plan.json`, `edl_ai.json` | plan_timeline |

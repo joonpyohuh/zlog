@@ -31,6 +31,7 @@ def test_product_stages_match_target_order():
         "split",
         "evidence",
         "filter",
+        "perception",
         "sheet",
         "analyze",
         "director",

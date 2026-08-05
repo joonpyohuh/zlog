@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "asset": "journey.mp4",
+  "boundaries": [
+    {
+      "timestamp_ms": 1500,
+      "label": "location_change"
+    },
+    {
+      "timestamp_ms": 3000,
+      "label": "activity_change"
+    }
+  ]
+}

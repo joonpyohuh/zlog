@@ -44,6 +44,16 @@ cp .env.example .env   # ANTHROPIC_API_KEY, optional OPENAI_API_KEY
 
 ffmpeg가 PATH에 있어야 한다.
 
+## Adaptive perception
+
+After deterministic evidence and filtering, Zlog writes an independently cached hierarchical timeline before model analysis. The local path preserves Frame -> Shot -> Atomic Event -> Semantic Scene -> Narrative Beat -> Chapter ranges, emits goal-conditioned boundary decisions, and exposes bounded read-only agent tools without paid calls.
+
+```powershell
+uv run python evals/run_perception_fixture.py
+```
+
+See [docs/adaptive-perception.md](docs/adaptive-perception.md) for artifacts, budgets, evaluation, and current limitations.
+
 ## CLI
 
 ```bash

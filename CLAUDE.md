@@ -35,7 +35,8 @@ zlog/
   server.py                  # FastAPI job API (web + Studio)
   pipeline/
     product_pipeline.py      # 공유 end-to-end 체인
-    split.py / evidence.py / filter.py / sheet.py / beats.py
+    split.py / evidence.py / filter.py / adaptive_perception.py / sheet.py / beats.py
+    perception_models.py / perception_tools.py
     analyze_assets.py        # Claude Haiku (+ 모드별 Sonnet 승급)
     director.py              # Claude Sonnet StoryPlan
     plan_timeline.py         # 코드 TimelinePlan + EDL
@@ -76,6 +77,7 @@ zlog/
 |---|---|---|---|
 | 씬 분할 | `pipeline/split.py` | `footage/<project>/*.mp4\|*.mov` | `work/<project>/segments.json`, `work/<project>/frames/<segment_id>.jpg` |
 | 품질 필터 | `pipeline/filter.py` | `work/<project>/segments.json`, `work/<project>/frames/**` | `work/<project>/candidates.json`, `work/<project>/rejected_contact.jpg` |
+| 적응형 인지 | `pipeline/adaptive_perception.py` | `segments.json`, `evidence_manifest.json`, `deterministic_features.json`, `candidates.json` | `perception_scan.json`, `boundary_candidates.json`, `perception_routes.json`, `boundary_decisions.json`, `hierarchical_timeline.json`, `perception_cost_report.json` |
 | 컨택트 시트 (나중) | `pipeline/sheet.py` | `work/<project>/candidates.json`, `work/<project>/frames/**` | `work/<project>/contact_sheets/sheet_*.jpg`, `work/<project>/contact_sheet_manifest.json` |
 | 비트 그리드 (나중) | `pipeline/beats.py` | `assets/bgm/<track>.mp3` | `assets/bgm/<track>.beats.json` |
 | 구조화 태깅 | `pipeline/tag.py` | `work/<project>/candidates.json`, `work/<project>/contact_sheet_manifest.json`, `work/<project>/contact_sheets/*.jpg` | `work/<project>/tags.json`, `work/<project>/candidates.json` (제자리 갱신 — `candidates` 배열에 `tags` 병합) |

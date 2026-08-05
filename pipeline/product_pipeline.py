@@ -30,6 +30,7 @@ StageName = Literal[
     "evidence",
     "features",
     "filter",
+    "perception",
     "sheet",
     "analyze",
     "director",
@@ -45,6 +46,7 @@ PRODUCT_STAGES: list[str] = [
     "split",
     "evidence",
     "filter",
+    "perception",
     "sheet",
     "analyze",
     "director",
@@ -195,10 +197,12 @@ def run_product_pipeline(
     from pipeline import filter as filter_stage
     from pipeline import select_baseline, sheet
     from pipeline import split as split_stage
+    from pipeline.adaptive_perception import run_adaptive_perception
     from pipeline.analyze_assets import analyze_assets
     from pipeline.audio_engine import run_audio_engine
     from pipeline.director import create_story_plan
     from pipeline.evaluate_plan import evaluate_and_repair
+    from pipeline.perception_models import EditingGoal
     from pipeline.plan_timeline import plan_timeline
     from run import _stage_grade, _stage_render
 
@@ -349,6 +353,26 @@ def run_product_pipeline(
             _filter,
             provider="opencv",
             model="deterministic",
+        )
+
+    # --- adaptive perception (local, independently cached passes) ---
+    if "perception" in todo:
+        emit("perception")
+        timed(
+            "perception",
+            lambda: run_adaptive_perception(
+                work_root,
+                project,
+                footage_dir=footage_dir,
+                editing_goal=EditingGoal(
+                    target_duration_seconds=target_duration_s,
+                    pacing="fast" if target_duration_s <= 20 else "balanced",
+                    narrative_preference=user_intent or "",
+                ),
+                force=force,
+            ),
+            provider="opencv",
+            model="adaptive-perception-v1",
         )
 
     # --- sheet ---
