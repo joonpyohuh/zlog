@@ -9,7 +9,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from 'remotion';
-import {effectiveFitMode} from './style';
+import {effectiveFitMode, objectFitForMode, objectPositionCss} from './style';
 import type {Frame, ResolvedTimelineClip} from './types';
 
 type MotionKind =
@@ -58,11 +58,12 @@ export const Clip: React.FC<{
   });
 
   const pictureLeft = (width - frame.width) / 2;
+  const position = objectPositionCss(focusX, focusY);
   const videoStyle: React.CSSProperties = {
     width: '100%',
     height: '100%',
-    objectFit: fit === 'contain' || fit === 'blurred_background_contain' ? 'contain' : 'cover',
-    objectPosition: `${focusX * 100}% ${focusY * 100}%`,
+    objectFit: objectFitForMode(fit),
+    objectPosition: position,
     transformOrigin: origin,
     transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
   };
@@ -90,7 +91,7 @@ export const Clip: React.FC<{
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                objectPosition: `${focusX * 100}% ${focusY * 100}%`,
+                objectPosition: position,
                 filter: 'blur(28px) brightness(0.55) saturate(1.05)',
                 transform: 'scale(1.12)',
               }}

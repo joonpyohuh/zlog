@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 from pipeline.ai.schemas import (
@@ -25,6 +26,7 @@ STYLE_TS = REPO / "render" / "src" / "style.ts"
 ZLOG_TSX = REPO / "render" / "src" / "ZlogFilm.tsx"
 CAPTION_TSX = REPO / "render" / "src" / "Caption.tsx"
 ROOT_TSX = REPO / "render" / "src" / "Root.tsx"
+FOCUS_ASSERT = REPO / "render" / "scripts" / "assert_focus_crop.mjs"
 
 
 def test_clip_tsx_does_not_use_order_modulo_motion():
@@ -96,6 +98,30 @@ def test_low_crop_confidence_uses_blurred_contain():
         analysis_model="x",
     )
     assert fit_mode_for_analysis(a, StylePreset.clean_vlog) == FitMode.blurred_background_contain
+
+
+def test_clip_uses_focus_object_position_helpers():
+    clip = CLIP_TSX.read_text(encoding="utf-8")
+    style = STYLE_TS.read_text(encoding="utf-8")
+    assert "objectPositionCss" in style
+    assert "objectFitForMode" in style
+    assert "objectPositionCss" in clip
+    assert "objectFitForMode" in clip
+    assert "blurred_background_contain" in clip
+
+
+def test_focus_x_changes_object_position_via_node_helper():
+    result = subprocess.run(
+        ["node", str(FOCUS_ASSERT)],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "ok" in result.stdout
 
 
 def test_director_y2k_maps_to_camcorder_preset():

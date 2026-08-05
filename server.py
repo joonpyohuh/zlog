@@ -115,28 +115,11 @@ def _target_duration(upload_count: int = 0) -> float:
     return min(WEB_DURATION_CAP, suggest_target_duration_sec(upload_count))
 
 
-def _image_to_clip(image: Path, out: Path, seconds: float) -> None:
-    _run(
-        [
-            "ffmpeg",
-            "-y",
-            "-loop",
-            "1",
-            "-t",
-            f"{seconds:.2f}",
-            "-i",
-            str(image),
-            "-vf",
-            "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,unsharp=5:5:0.8:5:5:0.0",
-            "-c:v",
-            "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-r",
-            "30",
-            str(out),
-        ]
-    )
+def _image_to_proxy_clip(image: Path, out: Path, seconds: float, *, upload_index: int = 0) -> dict:
+    """Aspect-preserving still proxy — 9:16 crop happens only in Remotion."""
+    from pipeline.still_proxy import image_to_proxy_clip
+
+    return image_to_proxy_clip(image, out, seconds, upload_index=upload_index)
 
 
 def _ensure_candidates(project: str) -> None:
@@ -272,10 +255,20 @@ def _process_job(
         )
 
         if images:
+            from pipeline.still_proxy import write_source_manifest
+
             divisor = max(min(len(images), 4), 1)
             still_sec = max(4.0, min(16.0, duration / divisor))
+            manifest_items: list[dict] = []
             for i, image in enumerate(images, start=1):
-                _image_to_clip(image, footage_dir / f"still_{i:02d}.mp4", still_sec)
+                entry = _image_to_proxy_clip(
+                    image,
+                    footage_dir / f"still_{i:02d}.mp4",
+                    still_sec,
+                    upload_index=i - 1,
+                )
+                manifest_items.append(entry)
+            write_source_manifest(footage_dir, manifest_items, project=project)
 
         project_dir = WORK_ROOT / project
         if project_dir.exists():
