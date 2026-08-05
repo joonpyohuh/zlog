@@ -146,6 +146,19 @@ def test_ducking_envelope_dips_on_speech():
     assert any(e["kind"] == "speech" for e in env["events_applied"])
 
 
+def test_editorial_payoff_duck_works_without_source_audio():
+    env = build_ducking_envelope(
+        {"has_source_audio": False, "events": []},
+        duration_sec=4.0,
+        editorial_ducks=[{"start_sec": 1.0, "end_sec": 1.4, "target_gain": 0.48}],
+    )
+    payoff = next(k for k in env["keyframes"] if 1.1 <= k["t"] <= 1.3)
+    lead_in = next(k for k in env["keyframes"] if 0.2 <= k["t"] <= 0.4)
+    assert payoff["gain"] <= 0.5
+    assert lead_in["gain"] >= 0.95
+    assert any(e["kind"] == "editorial" for e in env["events_applied"])
+
+
 def test_ducking_graph_written(tmp_path: Path):
     env = build_ducking_envelope(
         {

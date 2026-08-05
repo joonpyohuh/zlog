@@ -470,29 +470,11 @@ def build_ducking_envelope(
     duration_sec: float,
     base_volume: float = MUSIC_BASE_VOLUME,
     dt: float = ENVELOPE_DT,
+    editorial_ducks: list[dict[str, float]] | None = None,
 ) -> dict[str, Any]:
     """Piecewise BGM gain curve from classified source events + attack/release."""
     n = max(1, math.ceil(duration_sec / dt) + 1)
     gain = np.ones(n, dtype=np.float64)  # relative to base_volume
-
-    if not source_analysis.get("has_source_audio"):
-        times = [round(i * dt, 4) for i in range(n)]
-        # End fade-out baked into envelope
-        for i, t in enumerate(times):
-            if t >= max(0.0, duration_sec - FADE_OUT_S):
-                u = (duration_sec - t) / FADE_OUT_S if FADE_OUT_S > 0 else 0.0
-                gain[i] *= max(0.0, min(1.0, u))
-        keyframes = [
-            {"t": times[i], "gain": round(float(gain[i]), 4), "volume": round(float(gain[i] * base_volume), 4)}
-            for i in range(n)
-        ]
-        return {
-            "dt_sec": dt,
-            "base_volume": base_volume,
-            "duration_sec": round(duration_sec, 3),
-            "keyframes": keyframes,
-            "events_applied": [],
-        }
 
     events_applied: list[dict[str, Any]] = []
     for ev in source_analysis.get("events") or []:
@@ -522,6 +504,24 @@ def build_ducking_envelope(
                 "target_gain": target,
                 "attack_sec": attack,
                 "release_sec": release,
+            }
+        )
+
+    for duck in editorial_ducks or []:
+        start = max(0.0, float(duck["start_sec"]))
+        end = min(duration_sec, float(duck["end_sec"]))
+        target = float(duck.get("target_gain", 0.48))
+        if end <= start:
+            continue
+        _apply_segment_gain(gain, dt, start, end, target, 0.04, 0.38)
+        events_applied.append(
+            {
+                "kind": "editorial",
+                "start_sec": round(start, 3),
+                "end_sec": round(end, 3),
+                "target_gain": target,
+                "attack_sec": 0.04,
+                "release_sec": 0.38,
             }
         )
 
@@ -763,8 +763,24 @@ def run_audio_engine(
             pass
 
     base_vol = float(edl.audio.volume) if edl.audio.volume else MUSIC_BASE_VOLUME
+    editorial_ducks: list[dict[str, float]] = []
+    cursor = 0.0
+    for clip in edl.timeline:
+        clip_duration = clip.out_sec - clip.in_sec
+        if clip.role == "zlog_moment":
+            editorial_ducks.append(
+                {
+                    "start_sec": max(0.0, cursor - 0.05),
+                    "end_sec": min(duration, cursor + min(0.4, clip_duration)),
+                    "target_gain": 0.48,
+                }
+            )
+        cursor += clip_duration
     envelope = build_ducking_envelope(
-        source, duration_sec=duration, base_volume=base_vol
+        source,
+        duration_sec=duration,
+        base_volume=base_vol,
+        editorial_ducks=editorial_ducks,
     )
     out_env.write_text(json.dumps(envelope, indent=2), encoding="utf-8")
     write_ducking_graph(envelope, out_graph)
