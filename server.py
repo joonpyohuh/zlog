@@ -35,9 +35,9 @@ JOBS_ROOT = REPO_ROOT / ".zlog_jobs"
 WEB_DIST = REPO_ROOT / "web" / "dist"
 TASTE_PATH = REPO_ROOT / "taste" / "taste_profile.json"
 DEFAULT_BGM = "demo_track"
-# Web demo target — Remotion at 1080x1920 is slow locally; keep shorts short.
+# Keep local renders bounded while giving larger uploads room to breathe.
 DEFAULT_DURATION = 12.0
-WEB_DURATION_CAP = 12.0
+WEB_DURATION_CAP = float(os.getenv("ZLOG_WEB_DURATION_CAP", "30"))
 # Half-res render (~4× fewer pixels) for the local web path; CLI can override.
 WEB_RENDER_SCALE = float(os.getenv("ZLOG_WEB_RENDER_SCALE", "0.5"))
 WEB_RENDER_CONCURRENCY = int(os.getenv("ZLOG_WEB_RENDER_CONCURRENCY", "2"))
@@ -107,10 +107,12 @@ def _run(cmd: list[str], cwd: Path | None = None) -> None:
 
 
 def _target_duration(upload_count: int = 0) -> float:
-    """Web jobs always stay under WEB_DURATION_CAP — local Remotion cannot
-    keep up with 30–40s 1080×1920 targets (looks like infinite loading)."""
-    del upload_count  # reserved for future pacing heuristics
-    return WEB_DURATION_CAP
+    """Scale with uploaded material without creating unbounded local renders."""
+    if upload_count <= 0:
+        return min(DEFAULT_DURATION, WEB_DURATION_CAP)
+    from pipeline.director import suggest_target_duration_sec
+
+    return min(WEB_DURATION_CAP, suggest_target_duration_sec(upload_count))
 
 
 def _image_to_clip(image: Path, out: Path, seconds: float) -> None:

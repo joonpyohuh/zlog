@@ -1,6 +1,7 @@
 import {continueRender, delayRender, staticFile} from 'remotion';
 
 let fontsPromise: Promise<void> | null = null;
+const FONT_LOAD_TIMEOUT_MS = 10000;
 
 const FACES: Array<{family: string; file: string; weight: string; format: string}> = [
   {family: 'Pretendard', file: 'fonts/Pretendard-Regular.otf', weight: '400', format: 'opentype'},
@@ -26,7 +27,16 @@ export function ensureFontsLoaded(): Promise<void> {
         style: 'normal',
         display: 'block',
       });
-      const loaded = await face.load();
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      const loaded = await Promise.race([
+        face.load(),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error(`font load timed out: ${family}`)),
+            FONT_LOAD_TIMEOUT_MS,
+          );
+        }),
+      ]).finally(() => clearTimeout(timeout));
       // Older TS DOM libs type FontFaceSet without add(); runtime always has it.
       (document.fonts as unknown as {add: (f: FontFace) => void}).add(loaded);
     }),

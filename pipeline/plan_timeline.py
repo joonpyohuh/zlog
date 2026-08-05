@@ -401,9 +401,11 @@ def build_sparse_captions(
                 Caption(
                     segment_id=opening.segment_id,
                     text=text,
-                    style="subtitle",
-                    position="bottom",
+                    style="title",
+                    font="display",
+                    position="top",
                     start_offset_sec=0.15,
+                    end_offset_sec=min(1.9, opening.out_sec - opening.in_sec),
                     grounding="visually_grounded_facts",
                 )
             )
@@ -686,7 +688,7 @@ def plan_timeline(
     if total_raw > 0:
         scale = target / total_raw
         # Keep some variance: clamp scale
-        scale = max(0.55, min(1.35, scale))
+        scale = max(0.55, min(2.2, scale))
         raw_durs = [
             min(by_cand[sid].duration, max(0.45, d * scale))
             for sid, d in zip(ordered, raw_durs, strict=True)
@@ -793,47 +795,51 @@ def plan_timeline(
         sid = callback.source_segment_id
         cand = by_cand[sid]
         analysis = analyses.get(sid)
-        wanted = timeline[-1].out_sec - timeline[-1].in_sec
+        wanted = min(1.5, max(0.75, timeline[0].out_sec - timeline[0].in_sec))
         in_sec, out_sec = _place_cut(cand, wanted, beat_times)
         focus_x = min(0.8, max(0.2, 1.1 - (analysis.focus_x if analysis else 0.5)))
         focus_y = analysis.focus_y if analysis else 0.45
         evidence = list(analysis.evidence_frame_ids) if analysis else []
-        planned[-1] = PlannedClip(
-            segment_id=sid,
-            role=ClipRole.resonance,
-            evidence_frame_ids=evidence,
-            preferred_moment=PreferredMoment.end,
-            target_duration_sec=round(out_sec - in_sec, 3),
-            fit_mode=fit_mode_for_analysis(analysis, story.style_preset),
-            focus_x=focus_x,
-            focus_y=focus_y,
-            motion=MotionKind.ken_burns_out,
-            motion_strength=0.3,
-            transition=TransitionKind.cut,
-            reuse_reason=callback.reuse_reason,
-            caption_strategy=CaptionStrategy.none,
-            effect_strategy=EffectStrategy(
-                effect="micro_pull_out", reason="opening callback payoff"
-            ),
+        planned.append(
+            PlannedClip(
+                segment_id=sid,
+                role=ClipRole.resonance,
+                evidence_frame_ids=evidence,
+                preferred_moment=PreferredMoment.end,
+                target_duration_sec=round(out_sec - in_sec, 3),
+                fit_mode=fit_mode_for_analysis(analysis, story.style_preset),
+                focus_x=focus_x,
+                focus_y=focus_y,
+                motion=MotionKind.ken_burns_out,
+                motion_strength=0.3,
+                transition=TransitionKind.cut,
+                reuse_reason=callback.reuse_reason,
+                caption_strategy=CaptionStrategy.none,
+                effect_strategy=EffectStrategy(
+                    effect="micro_pull_out", reason="opening callback payoff"
+                ),
+            )
         )
-        timeline[-1] = TimelineClip(
-            order=timeline[-1].order,
-            segment_id=sid,
-            source_file=cand.source_file,
-            in_sec=in_sec,
-            out_sec=out_sec,
-            transition="cut",
-            role=ClipRole.resonance.value,
-            evidence_frame_ids=evidence,
-            fit_mode=fit_mode_for_analysis(analysis, story.style_preset).value,
-            focus_x=focus_x,
-            focus_y=focus_y,
-            motion=MotionKind.ken_burns_out.value,
-            motion_strength=0.3,
-            reuse_reason=callback.reuse_reason,
-            crop_confidence=analysis.crop_confidence if analysis else None,
+        timeline.append(
+            TimelineClip(
+                order=len(timeline) + 1,
+                segment_id=sid,
+                source_file=cand.source_file,
+                in_sec=in_sec,
+                out_sec=out_sec,
+                transition="cut",
+                role=ClipRole.resonance.value,
+                evidence_frame_ids=evidence,
+                fit_mode=fit_mode_for_analysis(analysis, story.style_preset).value,
+                focus_x=focus_x,
+                focus_y=focus_y,
+                motion=MotionKind.ken_burns_out.value,
+                motion_strength=0.3,
+                reuse_reason=callback.reuse_reason,
+                crop_confidence=analysis.crop_confidence if analysis else None,
+            )
         )
-        ordered[-1] = sid
+        ordered.append(sid)
 
     # Ending credit off for clean_vlog unless style asks for camcorder kit
     signature = (
@@ -842,10 +848,8 @@ def plan_timeline(
         else Signature(enabled=False, text="", duration=0.0)
     )
     captions = build_sparse_captions(story, timeline, analyses)
-    if callback.enabled and callback.source_segment_id:
-        # Caption.segment_id resolves to the first matching clip, so duplicated
-        # callback footage must remain text-free to prevent cross-clip leakage.
-        captions = [c for c in captions if c.segment_id != callback.source_segment_id]
+    # Caption.segment_id resolves to the first occurrence, so an opening callback
+    # naturally keeps its closing reuse text-free without deleting the hook caption.
     # Attach caption text onto PlannedClip sparingly
     cap_by_sid = {c.segment_id: c.text for c in captions}
     planned = [
@@ -908,7 +912,7 @@ def plan_timeline(
         project=project,
         story_plan_version="1",
         clips=planned,
-        total_target_duration_sec=round(min(target, max(actual, 3.0)), 3),
+        total_target_duration_sec=round(max(actual, 3.0), 3),
         style_preset=story.style_preset,
     )
 

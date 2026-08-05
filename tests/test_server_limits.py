@@ -4,7 +4,18 @@ from io import BytesIO
 import pytest
 from fastapi import HTTPException, UploadFile
 
-from server import MAX_NOTE_CHARS, MAX_UPLOAD_FILES, create_job
+from server import (
+    MAX_NOTE_CHARS,
+    MAX_UPLOAD_FILES,
+    WEB_DURATION_CAP,
+    _target_duration,
+    create_job,
+)
+
+
+def test_web_duration_scales_with_uploaded_material():
+    assert _target_duration(2) < _target_duration(6) <= WEB_DURATION_CAP
+    assert _target_duration(20) <= WEB_DURATION_CAP
 
 
 def test_job_rejects_oversized_notes_and_file_batches():

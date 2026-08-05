@@ -149,6 +149,8 @@ def _effects_for(
     analysis: AssetAnalysis | None,
     used: Counter[EffectId],
     budget: CreativeEffectBudget,
+    *,
+    is_final: bool,
 ) -> tuple[EffectId, EffectId, EffectId]:
     role = canonical_clip_role(role)
     entry = EffectId.clean_cut
@@ -198,7 +200,8 @@ def _effects_for(
         primary = EffectId.clean_cut
     elif role == ClipRole.resonance:
         primary = EffectId.micro_pull_out
-        exit_effect = EffectId.ambient_outro
+        if is_final:
+            exit_effect = EffectId.ambient_outro
 
     for effect in (entry, primary, exit_effect):
         if effect != EffectId.clean_cut:
@@ -226,7 +229,7 @@ def build_execution_plan(
 
     used: Counter[EffectId] = Counter()
     decisions: list[CreativeDecision] = []
-    for clip in clips:
+    for index, clip in enumerate(clips):
         role = canonical_clip_role(clip.role)
         analysis = analyses.get(clip.segment_id)
         caption_text = _caption_text(clip, analysis)
@@ -236,7 +239,14 @@ def build_execution_plan(
                 "caption_grounding": clip.caption_grounding if caption_text else "",
             }
         )
-        entry, primary, exit_effect = _effects_for(role, safe_clip, analysis, used, budget)
+        entry, primary, exit_effect = _effects_for(
+            role,
+            safe_clip,
+            analysis,
+            used,
+            budget,
+            is_final=index == len(clips) - 1,
+        )
         reasons: list[ReasonCode] = []
         if role == ClipRole.hook:
             reasons.append(ReasonCode.hook_potential)

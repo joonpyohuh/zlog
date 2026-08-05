@@ -70,7 +70,8 @@ Your job:
 3. Pick hook / orientation / development / zlog_moment / release / resonance segment_ids
    (Soft Flow — adapt to footage; do not force a visible template)
 4. You may cold-open with a later highlight, then usually return to chronology
-5. Drop weak material; keep imperfect handheld when it has energy
+5. Keep every narratively distinct usable moment. Drop only technical failures and
+   true near-duplicates; when 6+ usable distinct assets exist, select at least 60%
 6. Set target_duration_sec to fit the amount of usable material (few stills → short)
 7. Default allow_asset_reuse=false — do not pick duplicates for padding
 8. Default style_preset=clean_vlog unless the brief explicitly asks for Y2K/CCD/retro
@@ -104,16 +105,16 @@ def suggest_target_duration_sec(n_usable: int) -> float:
     if n == 1:
         return 5.0
     if n == 2:
-        return 7.0
+        return 8.0
     if n == 3:
-        return 9.0
-    if n == 4:
         return 11.0
-    if n <= 6:
+    if n == 4:
         return 14.0
+    if n <= 6:
+        return 12.0 + (n - 3) * 2.0
     if n <= 8:
-        return 18.0
-    return float(min(30.0, 10.0 + n * 1.25))
+        return 18.0 + (n - 6) * 2.0
+    return float(min(45.0, 8.0 + n * 1.8))
 
 
 def max_allowed_duration_sec(n_selected: int) -> float:
@@ -351,6 +352,24 @@ def validate_story_plan(
                     f"selected all members of redundancy_group={group!r} ({len(ids)})"
                 )
 
+        usable_distinct: set[str] = set()
+        seen_groups: set[str] = set()
+        for a in analyses:
+            if a.technical_quality < 0.25 or (a.narrative_value + a.aesthetic_value) < 0.5:
+                continue
+            if a.redundancy_group:
+                if a.redundancy_group in seen_groups:
+                    continue
+                seen_groups.add(a.redundancy_group)
+            usable_distinct.add(a.segment_id)
+        minimum = math.ceil(len(usable_distinct) * 0.6)
+        selected_usable = len(set(selected) & usable_distinct)
+        if len(usable_distinct) >= 6 and selected_usable < minimum:
+            errors.append(
+                f"selected only {selected_usable}/{len(usable_distinct)} usable distinct assets "
+                f"(minimum {minimum})"
+            )
+
     return errors
 
 
@@ -383,15 +402,6 @@ def deterministic_story_plan(
     chronological = [a for a in ordered if a.segment_id in chosen_ids]
     if not chronological:
         chronological = ordered[:1]
-
-    # Limit count for short material
-    if len(chronological) > 6:
-        # keep top scores but preserve chrono order
-        keep = {
-            a.segment_id
-            for a in sorted(chronological, key=_composite_score, reverse=True)[:6]
-        }
-        chronological = [a for a in chronological if a.segment_id in keep]
 
     selected_ids = [a.segment_id for a in chronological]
     hook = max(chronological, key=lambda a: a.hook_potential)

@@ -242,6 +242,7 @@ def test_dynamic_length_from_material(tmp_path: Path):
     short_t = run("few", few, 40.0)
     long_t = run("many", many, 40.0)
     assert short_t < long_t
+    assert long_t >= 15.0
     assert short_t <= adjust_target_duration(40.0, 2, allow_reuse=False) + 0.01
 
 
@@ -306,9 +307,44 @@ def test_opening_callback_is_explicit_and_used_once(tmp_path: Path):
     timeline = json.loads((work / "callback" / "timeline_plan.json").read_text(encoding="utf-8"))["plan"]["clips"]
     creative = json.loads((work / "callback" / "creative_execution_plan.json").read_text(encoding="utf-8"))
     assert [clip["segment_id"] for clip in timeline].count(ids[0]) == 2
+    assert set(ids).issubset({clip["segment_id"] for clip in timeline})
+    assert timeline[-2]["segment_id"] == ids[-1]
     assert timeline[-1]["reuse_reason"] == "opening_callback"
     assert creative["callback"]["enabled"] is True
     assert creative["callback"]["alternate_crop"] is True
+
+
+def test_opening_caption_survives_callback(tmp_path: Path):
+    ids = [f"still_{i:02d}#s001" for i in range(1, 6)]
+    analyses = [
+        _analysis(
+            sid,
+            upload_index=i,
+            hook_potential=0.9 if i == 0 else 0.4,
+            emotional_value=0.75 if i == 0 else 0.45,
+            visually_grounded_facts=["person outdoors"],
+        )
+        for i, sid in enumerate(ids)
+    ]
+    story = _story(
+        ids,
+        target_duration_sec=12.0,
+        caption_mode=CaptionMode.sparse,
+        narrative_arc=["fact: person outdoors"],
+    )
+    work = _project(
+        tmp_path,
+        name="caption_callback",
+        story=story,
+        analyses=analyses,
+        candidates=[_cand(sid) for sid in ids],
+    )
+    plan_timeline(work, "caption_callback", BGM, force=True)
+    edl = load_edl(work / "caption_callback" / "edl_ai.json")
+    assert edl.captions and edl.captions[0].segment_id == ids[0]
+    assert edl.captions[0].style == "title"
+    assert edl.captions[0].position == "top"
+    assert edl.captions[0].end_offset_sec <= 1.9
 
 
 @pytest.mark.skipif(not BGM.exists(), reason="demo_track.wav missing")

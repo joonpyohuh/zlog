@@ -118,6 +118,26 @@ def test_does_not_select_all_duplicate_photos():
     assert len(plan.selected_segment_ids) == len(set(plan.selected_segment_ids))
 
 
+def test_distinct_usable_assets_are_not_arbitrarily_capped_at_six():
+    analyses = [_analysis(f"still_{i:02d}#s001", upload_index=i - 1) for i in range(1, 11)]
+    plan = deterministic_story_plan("vlog", analyses)
+    assert len(plan.selected_segment_ids) == 10
+
+    underselected = plan.model_copy(
+        update={
+            "selected_segment_ids": plan.selected_segment_ids[:4],
+            "hook_segment_id": plan.selected_segment_ids[0],
+            "ending_segment_id": plan.selected_segment_ids[3],
+        }
+    )
+    errors = validate_story_plan(
+        underselected,
+        allowed_segment_ids={a.segment_id for a in analyses},
+        analyses=analyses,
+    )
+    assert any("usable distinct assets" in error for error in errors)
+
+
 def test_default_style_is_clean_vlog_without_y2k_request():
     assert style_from_brief("감성적인 유튜브 브이로그로 만들어줘") == StylePreset.clean_vlog
     plan = deterministic_story_plan("감성적인 유튜브 브이로그로 만들어줘", _few_photos())

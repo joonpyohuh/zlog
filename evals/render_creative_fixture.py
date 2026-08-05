@@ -51,7 +51,7 @@ def _make_sources() -> None:
                 "-i",
                 str(source),
                 "-t",
-                "2.5",
+                "4.5",
                 "-vf",
                 "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
                 "-r",
@@ -75,8 +75,8 @@ def _write_inputs() -> None:
                 segment_id=segment_id,
                 source_file=source_file,
                 start_sec=0.0,
-                end_sec=2.5,
-                duration=2.5,
+                end_sec=4.5,
+                duration=4.5,
                 frame_path=f"frames/{segment_id}.jpg",
                 quality=Quality(
                     blur_score=220 + index,
@@ -121,13 +121,20 @@ def _write_inputs() -> None:
         user_intent="quiet photo diary",
         concept="a quiet portrait sequence with one remembered reaction",
         tone=Mood.calm,
-        target_duration_sec=12.0,
+        target_duration_sec=18.0,
         style_preset=StylePreset.clean_vlog,
         hook_segment_id=ids[0],
         ending_segment_id=ids[-1],
         selected_segment_ids=ids,
-        narrative_arc=["hook", "orientation", "development", "release", "resonance"],
-        caption_mode=CaptionMode.none,
+        narrative_arc=[
+            "hook",
+            "orientation",
+            "development",
+            "release",
+            "resonance",
+            "fact: warm portrait oval",
+        ],
+        caption_mode=CaptionMode.sparse,
         allow_asset_reuse=False,
         provider="anthropic",
         model="fixture-no-api",
@@ -181,7 +188,7 @@ def main() -> None:
     ):
         (PROJECT_DIR / name).unlink(missing_ok=True)
 
-    select_baseline(WORK, PROJECT, BGM, 12.0)
+    select_baseline(WORK, PROJECT, BGM, 18.0)
     _stage_render(PROJECT_DIR, force=True, scale=0.35, concurrency=2)
     _stage_grade(PROJECT_DIR, force=True)
     shutil.copy2(PROJECT_DIR / "final.mp4", comparison / "before.mp4")
