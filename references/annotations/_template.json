@@ -1,0 +1,28 @@
+{
+  "license": "owned",
+  "source_url": null,
+  "rights_holder": "",
+  "annotator": "",
+  "style_tags": ["clean", "warm", "daily-vlog"],
+  "caption_presets": ["minimal_bottom"],
+  "motion_presets": ["slow_push_subject"],
+  "color_presets": ["warm_cafe"],
+  "transition_presets": ["clean_cut"],
+  "overlay_presets": [],
+  "audio_presets": ["music_under_dialogue"],
+  "markers": [
+    {
+      "timestamp_ms": 1800,
+      "category": "motion",
+      "preset_id": "punch_in",
+      "note": "opening hook accent"
+    }
+  ],
+  "quality_labels": {
+    "overall": null,
+    "pacing": null,
+    "clarity": null,
+    "emotional_payoff": null
+  },
+  "notes": ""
+}

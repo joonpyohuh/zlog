@@ -54,6 +54,17 @@ uv run python evals/run_perception_fixture.py
 
 See [docs/adaptive-perception.md](docs/adaptive-perception.md) for artifacts, budgets, evaluation, and current limitations.
 
+## Reference learning
+
+완성된 레퍼런스 영상에서 컷 호흡과 검증 가능한 시각 신호를 추출하고, 수동 편집 주석과 합쳐 versioned 학습 레코드를 만드는 로컬 환경이 있습니다.
+
+```powershell
+python -m pipeline.reference_learning init --root references
+python -m pipeline.reference_learning analyze --root references
+```
+
+입력 규격과 자동/수동 분석 경계는 [docs/reference-learning.md](docs/reference-learning.md)를 참고하세요.
+
 ## CLI
 
 ```bash

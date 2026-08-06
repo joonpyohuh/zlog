@@ -36,18 +36,21 @@ VIDEO_EXTENSIONS = {".mp4", ".mov"}
 
 def _video_files(footage_dir: Path) -> list[Path]:
     return sorted(
-        p for p in footage_dir.iterdir()
+        p
+        for p in footage_dir.iterdir()
         if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS
     )
 
 
-def _detect_shot_frames(video_path: Path) -> tuple[list[tuple[int, int]], float]:
+def detect_shot_frames(video_path: Path) -> tuple[list[tuple[int, int]], float]:
     """Run ContentDetector and return [(start_frame, end_frame), ...] plus fps.
 
     Falls back to a single shot spanning the whole video if PySceneDetect
     finds no cuts (e.g. a static, single-take clip).
     """
-    scene_list = detect(str(video_path), ContentDetector(threshold=CONTENT_DETECTOR_THRESHOLD))
+    scene_list = detect(
+        str(video_path), ContentDetector(threshold=CONTENT_DETECTOR_THRESHOLD)
+    )
 
     if scene_list:
         fps = scene_list[0][0].framerate
@@ -60,7 +63,9 @@ def _detect_shot_frames(video_path: Path) -> tuple[list[tuple[int, int]], float]
     return [(0, total_frames)], fps
 
 
-def _apply_length_rules(shots: list[tuple[int, int]], fps: float) -> list[tuple[int, int]]:
+def _apply_length_rules(
+    shots: list[tuple[int, int]], fps: float
+) -> list[tuple[int, int]]:
     """Drop shots < MIN_SHOT_SEC, split shots > MAX_SHOT_SEC into ~CHUNK_SEC pieces."""
     chunk_frames = round(CHUNK_SEC * fps)
     out: list[tuple[int, int]] = []
@@ -83,17 +88,23 @@ def _apply_length_rules(shots: list[tuple[int, int]], fps: float) -> list[tuple[
     return out
 
 
-def _save_mid_frame(cap: cv2.VideoCapture, start_frame: int, end_frame: int, out_path: Path) -> None:
+def _save_mid_frame(
+    cap: cv2.VideoCapture, start_frame: int, end_frame: int, out_path: Path
+) -> None:
     mid_frame = (start_frame + end_frame) // 2
     cap.set(cv2.CAP_PROP_POS_FRAMES, mid_frame)
     ok, frame_bgr = cap.read()
     if not ok:
-        raise RuntimeError(f"could not read frame {mid_frame} from video for {out_path.name}")
+        raise RuntimeError(
+            f"could not read frame {mid_frame} from video for {out_path.name}"
+        )
 
     img = Image.fromarray(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))
     scale = THUMB_LONG_EDGE / max(img.size)
     if scale < 1:
-        img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
+        img = img.resize(
+            (round(img.width * scale), round(img.height * scale)), Image.LANCZOS
+        )
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     img.save(out_path, quality=90)
@@ -110,7 +121,9 @@ def run_split(footage_dir: Path, work_root: Path, force: bool = False) -> Path:
     segments_path = project_dir / "segments.json"
 
     if segments_path.exists() and not force:
-        click.echo(f"{segments_path} already exists, skipping (use --force to overwrite)")
+        click.echo(
+            f"{segments_path} already exists, skipping (use --force to overwrite)"
+        )
         return segments_path
 
     videos = _video_files(footage_dir)
@@ -124,7 +137,7 @@ def run_split(footage_dir: Path, work_root: Path, force: bool = False) -> Path:
     # progress bar reflects the real amount of frame-extraction work.
     per_video_shots: dict[Path, tuple[list[tuple[int, int]], float]] = {}
     for video_path in tqdm(videos, desc="detecting scenes"):
-        shots, fps = _detect_shot_frames(video_path)
+        shots, fps = detect_shot_frames(video_path)
         per_video_shots[video_path] = (_apply_length_rules(shots, fps), fps)
 
     total_segments = sum(len(shots) for shots, _ in per_video_shots.values())
@@ -137,7 +150,9 @@ def run_split(footage_dir: Path, work_root: Path, force: bool = False) -> Path:
                 for n, (start_frame, end_frame) in enumerate(shots, start=1):
                     segment_id = f"{video_path.stem}#s{n:03d}"
                     frame_rel_path = f"frames/{segment_id}.jpg"
-                    _save_mid_frame(cap, start_frame, end_frame, project_dir / frame_rel_path)
+                    _save_mid_frame(
+                        cap, start_frame, end_frame, project_dir / frame_rel_path
+                    )
 
                     start_sec = round(start_frame / fps, 3)
                     end_sec = round(end_frame / fps, 3)
@@ -162,7 +177,9 @@ def run_split(footage_dir: Path, work_root: Path, force: bool = False) -> Path:
 
 
 def print_summary(segments_path: Path) -> None:
-    segments_file = SegmentsFile.model_validate_json(segments_path.read_text(encoding="utf-8"))
+    segments_file = SegmentsFile.model_validate_json(
+        segments_path.read_text(encoding="utf-8")
+    )
     segs = segments_file.segments
     if not segs:
         click.echo("no segments produced")
@@ -180,9 +197,13 @@ def print_summary(segments_path: Path) -> None:
 
 
 @click.command()
-@click.argument("footage_dir", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.argument(
+    "footage_dir", type=click.Path(exists=True, file_okay=False, path_type=Path)
+)
 @click.option("--work-root", type=click.Path(path_type=Path), default=Path("work"))
-@click.option("--force", is_flag=True, default=False, help="overwrite an existing segments.json")
+@click.option(
+    "--force", is_flag=True, default=False, help="overwrite an existing segments.json"
+)
 def main(footage_dir: Path, work_root: Path, force: bool) -> None:
     out = run_split(footage_dir, work_root, force=force)
     click.echo(f"wrote {out}")

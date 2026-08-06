@@ -42,8 +42,8 @@ def proxy_dimensions(width: int, height: int, max_edge: int | None = None) -> tu
     h = max(1, int(height))
     long = max(w, h)
     scale = min(1.0, max_edge / long) if long else 1.0
-    pw = int(round(w * scale))
-    ph = int(round(h * scale))
+    pw = round(w * scale)
+    ph = round(h * scale)
     pw = max(2, pw - (pw % 2))
     ph = max(2, ph - (ph % 2))
     return pw, ph

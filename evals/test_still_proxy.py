@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageDraw
 
+from pipeline.edl import Scene, SegmentsFile
 from pipeline.evidence import EvidenceSegment, run_evidence
 from pipeline.still_proxy import (
     ffprobe_video_size,
@@ -19,7 +20,6 @@ from pipeline.still_proxy import (
     still_proxy_max_edge,
     write_source_manifest,
 )
-from pipeline.edl import Scene, SegmentsFile
 
 REPO = Path(__file__).resolve().parents[1]
 

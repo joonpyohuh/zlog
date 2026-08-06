@@ -16,6 +16,15 @@ work/*
 footage/*
 !footage/.gitkeep
 
+# local reference corpus and generated learning artifacts
+references/inbox/*
+!references/inbox/.gitkeep
+references/library/*
+!references/library/.gitkeep
+references/schemas/*
+references/annotations/*.json
+!references/annotations/_template.json
+
 # Remotion / Node (render/ project)
 render/node_modules/
 render/out/
