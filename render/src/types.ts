@@ -81,6 +81,12 @@ export type Edl = {
   captions?: Caption[];
   signature: Signature;
   style_preset?: string;
+  /**
+   * How many grounded captions may reach the screen. Omitted → 3, the sparse
+   * default every hand-authored EDL assumes. The taste loop raises it so its
+   * caption-frequency variants render the count they logged.
+   */
+  max_captions?: number;
 };
 
 // Resolved-in-Node variants: resolve-props.mjs stages each clip's video and

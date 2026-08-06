@@ -45,6 +45,7 @@ zlog/
     select_ai.py / tag.py    # legacy 경로 (서버 기본 경로 아님)
     ai/                      # providers, schemas, router, usage
     grade.py / edl.py / taste.py
+    taste_loop/              # 취향 수집 루프 (아래 별도 절)
   render/                    # Remotion
   web/                       # Vite composer
   next-web/                  # Next.js Studio + billing
@@ -187,6 +188,45 @@ segment_id/사유 텍스트만 들어간다. `taste_profile.json`/`examples.json
 `select_baseline.extend_beat_grid()`로 그리드를 같은 템포로 후보 최장 지점까지
 산술 연장해서 쓴다 (리듬은 여전히 librosa 템포가 결정).
 
+## 취향 수집 루프 (`pipeline/taste_loop/`)
+
+같은 미디어 묶음으로 **한 축만** 다르게 한 영상 4개를 만들고, 사람이 하나를 고르고,
+그 선택이 쌓이면 통계로 StyleProfile의 값 범위를 좁힌다. **모델 학습은 하지 않는다.**
+
+기존 파이프라인 **위에 얹는 레이어**다: 이미 만들어진 `edl_ai.json`/`edl_baseline.json`을
+읽어 한 축에 해당하는 필드만 다시 쓴다. 재기획·모델 호출을 하지 않고, `_place_cut`을
+그대로 써서 컷 경계가 소스 세그먼트 안에 남고 비트 그리드에 스냅된 상태를 유지한다
+(대원칙 2/3).
+
+| 모듈 | 역할 |
+|---|---|
+| `axes.py` | 프리셋 레지스트리 — 축 4개와 허용 범위. 범위 밖 값은 **에러**(조용히 깎지 않음) |
+| `style_profile.py` | 축별 현재 범위. `taste/style_profiles/v{N}.json`, **append-only** |
+| `media_sets.py` | 미디어 묶음 등록 + 라운드마다 최소 사용 묶음으로 로테이션 |
+| `variants.py` | `EditTimeline` 4개 생성 — 한 축만 흔든다 |
+| `render_batch.py` | 순차 렌더. 실패는 기록하고 넘어감(전체를 죽이지 않음), 폰트 타임아웃용 1회 재시도 |
+| `store.py` | `comparison_rounds` / `clip_feedback` 저장 — `local`(기본) 또는 `supabase` |
+| `feedback.py` | 타임스탬프 → clip_id / active_presets / active_params / caption_active **코드가 채움** |
+| `update_profile.py` | 축별 승자 통계로 범위 좁히기. 5개 미만이면 "데이터 부족"으로 건드리지 않음 |
+
+축 4개: `avg_cut_duration`(0.4~4.0초) · `caption_frequency`(0~1) ·
+`push_in_strength`(0~0.8) · `non_hard_cut_ratio`(0~0.6).
+
+DB 스키마: `supabase/migrations/20260806_taste_loop.sql`. 로컬 백엔드는 같은 모양을
+`taste/taste_loop/rounds/*.json` + `clip_feedback.jsonl`로 쓴다 — 나중에 그대로
+Supabase에 replay 가능.
+
+UI (`next-web/`): `/taste/compare`(4개 나란히, **설정값은 절대 화면에 안 나옴** —
+`BlindVariant`에 `axis_value` 자체가 없다) · `/taste/review/[timelineId]`(스페이스바
+구간 평가) · `/taste/feedback`(수집 현황 목록).
+
+```bash
+python -m pipeline.taste_loop.cli register-media-set --id trip_a --project trip_01 --bgm demo_track
+python -m pipeline.taste_loop.cli start-round --axis avg_cut_duration   # 4개 렌더 + 라운드 기록
+python -m pipeline.taste_loop.cli rounds
+python -m pipeline.taste_loop.update_profile                            # 범위 좁히기 (before/after 출력)
+```
+
 ## 실행 방법
 
 ```bash
@@ -217,3 +257,8 @@ YouTube 썸네일 → taste 덮어쓰기는 기본 비활성.
 - 아키텍처 대원칙 5가지를 우회하는 임시 방편 (LLM 타임스탬프 생성 등).
 - API 키·전체 시스템 프롬프트를 UI/로그/커밋에 노출하지 않는다.
 - `ZLOG_ALLOW_YOUTUBE_TASTE_OVERWRITE` 없이 taste_profile을 트렌드로 덮어쓰지 않는다.
+- **비교 화면에 설정값(축 이름·수치)을 절대 표시하지 않는다.** 숫자가 보이면 영상이
+  아니라 숫자를 보고 고르게 되고, 그 순간 로그는 취향을 측정하지 않게 된다.
+- 구간 평가에서 `active_presets`/`active_params`를 사람이 입력하게 만들지 않는다.
+  timeline JSON에서 코드가 읽어 채우고, 못 찾은 값은 추측하지 말고 null로 둔다.
+- StyleProfile을 덮어쓰지 않는다 — 항상 새 버전 파일로 저장한다.

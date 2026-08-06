@@ -53,11 +53,12 @@ export const ZlogFilm: React.FC<ZlogFilmProps> = ({edl}) => {
     }
   }
 
-  // Sparse captions: keep at most 3 on screen timeline; require grounding.
+  // Sparse captions: cap the on-screen count; require grounding.
   const groundedCaptions = (edl.captions ?? []).filter(
     (c) => (c.grounding || '').trim().length > 0 && (c.text || '').trim().length > 0,
   );
-  const sparseCaptions = groundedCaptions.slice(0, 3);
+  const captionCap = Math.max(0, Math.round(edl.max_captions ?? 3));
+  const sparseCaptions = groundedCaptions.slice(0, captionCap);
 
   const placedCaptions = sparseCaptions.flatMap((caption, i) => {
     const host = bySegment.get(caption.segment_id);

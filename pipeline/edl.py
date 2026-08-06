@@ -180,6 +180,11 @@ class EDL(BaseModel):
     captions: list[Caption] = []
     signature: Signature
     style_preset: str = "clean_vlog"
+    # How many grounded captions the renderer may show. Default 3 keeps the
+    # sparse-caption behaviour every existing EDL was authored against; the
+    # taste loop raises it so its caption_frequency variants are not silently
+    # truncated (a truncated caption would make the logged axis value a lie).
+    max_captions: int = 3
 
 
 def load_segments(path: Path) -> SegmentsFile:

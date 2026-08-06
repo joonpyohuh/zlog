@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "created_at": "2026-08-06T06:30:50+00:00",
+  "base_project": null,
+  "ranges": {
+    "avg_cut_duration": {
+      "low": 0.4,
+      "high": 4.0
+    },
+    "caption_frequency": {
+      "low": 0.0,
+      "high": 1.0
+    },
+    "push_in_strength": {
+      "low": 0.0,
+      "high": 0.8
+    },
+    "non_hard_cut_ratio": {
+      "low": 0.0,
+      "high": 0.6
+    }
+  },
+  "narrowed_from_version": null,
+  "narrowings": [],
+  "note": "initial profile — full registry range on every axis"
+}

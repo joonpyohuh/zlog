@@ -1,0 +1,31 @@
+{
+  "sets": [
+    {
+      "media_set_id": "demo_a",
+      "project": "demo_01",
+      "footage_dir": "footage/demo_01",
+      "work_dir": "work/demo_01",
+      "bgm_track": "demo_track",
+      "label": "demo_01 raw_01",
+      "registered_at": "2026-08-06T06:30:57+00:00"
+    },
+    {
+      "media_set_id": "photos_b",
+      "project": "web_8aca689c57",
+      "footage_dir": "footage/web_8aca689c57",
+      "work_dir": "work/web_8aca689c57",
+      "bgm_track": "demo_track",
+      "label": "21 uploads",
+      "registered_at": "2026-08-06T06:47:48+00:00"
+    },
+    {
+      "media_set_id": "photos_c",
+      "project": "web_9580e3b1cd",
+      "footage_dir": "footage/web_9580e3b1cd",
+      "work_dir": "work/web_9580e3b1cd",
+      "bgm_track": "demo_track",
+      "label": "21 uploads (b)",
+      "registered_at": "2026-08-06T06:47:49+00:00"
+    }
+  ]
+}

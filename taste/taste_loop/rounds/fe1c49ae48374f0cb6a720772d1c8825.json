@@ -1,0 +1,847 @@
+{
+  "id": "fe1c49ae48374f0cb6a720772d1c8825",
+  "media_set_id": "photos_c",
+  "axis": "avg_cut_duration",
+  "candidates": [
+    {
+      "timeline_id": "fe1c49ae48374f0cb6a720772d1c8825-0",
+      "round_id": "fe1c49ae48374f0cb6a720772d1c8825",
+      "media_set_id": "photos_c",
+      "project": "web_9580e3b1cd",
+      "axis": "avg_cut_duration",
+      "axis_value": 0.4,
+      "variant_index": 0,
+      "edl": {
+        "project": "web_9580e3b1cd",
+        "version": "1.0",
+        "generator": "ai",
+        "canvas": {
+          "width": 1080,
+          "height": 1920
+        },
+        "frame": {
+          "aspect": "9:16",
+          "width": 1080,
+          "height": 1920,
+          "y_offset": 0
+        },
+        "aesthetic": {
+          "lut": "",
+          "grain": 0.0,
+          "bloom": 0.0,
+          "scanlines": false,
+          "camcorder_osd": false,
+          "allow_flash": false
+        },
+        "audio": {
+          "bgm_id": "demo_track",
+          "start_sec": 0.0,
+          "volume": 0.8
+        },
+        "timeline": [
+          {
+            "order": 1,
+            "segment_id": "still_01#s001",
+            "source_file": "still_01.mp4",
+            "in_sec": 1.8,
+            "out_sec": 2.2,
+            "transition": "cut",
+            "role": "hook",
+            "evidence_frame_ids": [
+              "still_01#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.55,
+            "focus_y": 0.48,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.51,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.78
+          },
+          {
+            "order": 2,
+            "segment_id": "KakaoTalk_20260804_145923101#s001",
+            "source_file": "KakaoTalk_20260804_145923101.mp4",
+            "in_sec": 3.768,
+            "out_sec": 4.168,
+            "transition": "cut",
+            "role": "zlog_moment",
+            "evidence_frame_ids": [
+              "KakaoTalk_20260804_145923101#s001#f01",
+              "KakaoTalk_20260804_145923101#s001#f02",
+              "KakaoTalk_20260804_145923101#s001#f03",
+              "KakaoTalk_20260804_145923101#s001#f04",
+              "KakaoTalk_20260804_145923101#s001#f05"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.5,
+            "motion": "none",
+            "motion_strength": 0.05,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.7
+          },
+          {
+            "order": 3,
+            "segment_id": "still_02#s001",
+            "source_file": "still_02.mp4",
+            "in_sec": 1.8,
+            "out_sec": 2.2,
+            "transition": "cut",
+            "role": "development",
+            "evidence_frame_ids": [
+              "still_02#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.45,
+            "focus_y": 0.45,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.4,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.85
+          },
+          {
+            "order": 4,
+            "segment_id": "still_03#s001",
+            "source_file": "still_03.mp4",
+            "in_sec": 1.8,
+            "out_sec": 2.2,
+            "transition": "cut",
+            "role": "development",
+            "evidence_frame_ids": [
+              "still_03#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.4,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.39,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.8
+          },
+          {
+            "order": 5,
+            "segment_id": "KakaoTalk_20260804_145857844#s003",
+            "source_file": "KakaoTalk_20260804_145857844.mp4",
+            "in_sec": 9.799,
+            "out_sec": 10.199,
+            "transition": "cut",
+            "role": "release",
+            "evidence_frame_ids": [
+              "KakaoTalk_20260804_145857844#s003#f01",
+              "KakaoTalk_20260804_145857844#s003#f02",
+              "KakaoTalk_20260804_145857844#s003#f03",
+              "KakaoTalk_20260804_145857844#s003#f04",
+              "KakaoTalk_20260804_145857844#s003#f05"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.55,
+            "focus_y": 0.5,
+            "motion": "none",
+            "motion_strength": 0.05,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.72
+          },
+          {
+            "order": 6,
+            "segment_id": "still_04#s001",
+            "source_file": "still_04.mp4",
+            "in_sec": 1.8,
+            "out_sec": 2.2,
+            "transition": "cut",
+            "role": "resonance",
+            "evidence_frame_ids": [
+              "still_04#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.45,
+            "motion": "ken_burns_out",
+            "motion_strength": 0.41000000000000003,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.9
+          }
+        ],
+        "captions": [
+          {
+            "segment_id": "still_01#s001",
+            "text": "Sculptural mask or head object with warm lighting",
+            "style": "subtitle",
+            "font": "body",
+            "position": "bottom",
+            "start_offset_sec": 0.15,
+            "end_offset_sec": null,
+            "grounding": "visually_grounded_facts"
+          },
+          {
+            "segment_id": "still_04#s001",
+            "text": "bright",
+            "style": "lower_third",
+            "font": "body",
+            "position": "bottom",
+            "start_offset_sec": 0.1,
+            "end_offset_sec": null,
+            "grounding": "mood"
+          }
+        ],
+        "signature": {
+          "enabled": false,
+          "text": "",
+          "duration": 0.0
+        },
+        "style_preset": "clean_vlog",
+        "max_captions": 3
+      },
+      "created_at": "2026-08-06T06:58:22+00:00"
+    },
+    {
+      "timeline_id": "fe1c49ae48374f0cb6a720772d1c8825-1",
+      "round_id": "fe1c49ae48374f0cb6a720772d1c8825",
+      "media_set_id": "photos_c",
+      "project": "web_9580e3b1cd",
+      "axis": "avg_cut_duration",
+      "axis_value": 1.6,
+      "variant_index": 1,
+      "edl": {
+        "project": "web_9580e3b1cd",
+        "version": "1.0",
+        "generator": "ai",
+        "canvas": {
+          "width": 1080,
+          "height": 1920
+        },
+        "frame": {
+          "aspect": "9:16",
+          "width": 1080,
+          "height": 1920,
+          "y_offset": 0
+        },
+        "aesthetic": {
+          "lut": "",
+          "grain": 0.0,
+          "bloom": 0.0,
+          "scanlines": false,
+          "camcorder_osd": false,
+          "allow_flash": false
+        },
+        "audio": {
+          "bgm_id": "demo_track",
+          "start_sec": 0.0,
+          "volume": 0.8
+        },
+        "timeline": [
+          {
+            "order": 1,
+            "segment_id": "still_01#s001",
+            "source_file": "still_01.mp4",
+            "in_sec": 1.0,
+            "out_sec": 3.0,
+            "transition": "cut",
+            "role": "hook",
+            "evidence_frame_ids": [
+              "still_01#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.55,
+            "focus_y": 0.48,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.51,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.78
+          },
+          {
+            "order": 2,
+            "segment_id": "KakaoTalk_20260804_145923101#s001",
+            "source_file": "KakaoTalk_20260804_145923101.mp4",
+            "in_sec": 3.0,
+            "out_sec": 5.0,
+            "transition": "cut",
+            "role": "zlog_moment",
+            "evidence_frame_ids": [
+              "KakaoTalk_20260804_145923101#s001#f01",
+              "KakaoTalk_20260804_145923101#s001#f02",
+              "KakaoTalk_20260804_145923101#s001#f03",
+              "KakaoTalk_20260804_145923101#s001#f04",
+              "KakaoTalk_20260804_145923101#s001#f05"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.5,
+            "motion": "none",
+            "motion_strength": 0.05,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.7
+          },
+          {
+            "order": 3,
+            "segment_id": "still_02#s001",
+            "source_file": "still_02.mp4",
+            "in_sec": 1.0,
+            "out_sec": 3.0,
+            "transition": "cut",
+            "role": "development",
+            "evidence_frame_ids": [
+              "still_02#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.45,
+            "focus_y": 0.45,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.4,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.85
+          },
+          {
+            "order": 4,
+            "segment_id": "still_03#s001",
+            "source_file": "still_03.mp4",
+            "in_sec": 1.0,
+            "out_sec": 3.0,
+            "transition": "cut",
+            "role": "development",
+            "evidence_frame_ids": [
+              "still_03#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.4,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.39,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.8
+          },
+          {
+            "order": 5,
+            "segment_id": "KakaoTalk_20260804_145857844#s003",
+            "source_file": "KakaoTalk_20260804_145857844.mp4",
+            "in_sec": 9.0,
+            "out_sec": 11.0,
+            "transition": "cut",
+            "role": "release",
+            "evidence_frame_ids": [
+              "KakaoTalk_20260804_145857844#s003#f01",
+              "KakaoTalk_20260804_145857844#s003#f02",
+              "KakaoTalk_20260804_145857844#s003#f03",
+              "KakaoTalk_20260804_145857844#s003#f04",
+              "KakaoTalk_20260804_145857844#s003#f05"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.55,
+            "focus_y": 0.5,
+            "motion": "none",
+            "motion_strength": 0.05,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.72
+          },
+          {
+            "order": 6,
+            "segment_id": "still_04#s001",
+            "source_file": "still_04.mp4",
+            "in_sec": 1.0,
+            "out_sec": 3.0,
+            "transition": "cut",
+            "role": "resonance",
+            "evidence_frame_ids": [
+              "still_04#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.45,
+            "motion": "ken_burns_out",
+            "motion_strength": 0.41000000000000003,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.9
+          }
+        ],
+        "captions": [
+          {
+            "segment_id": "still_01#s001",
+            "text": "Sculptural mask or head object with warm lighting",
+            "style": "subtitle",
+            "font": "body",
+            "position": "bottom",
+            "start_offset_sec": 0.15,
+            "end_offset_sec": null,
+            "grounding": "visually_grounded_facts"
+          },
+          {
+            "segment_id": "still_04#s001",
+            "text": "bright",
+            "style": "lower_third",
+            "font": "body",
+            "position": "bottom",
+            "start_offset_sec": 0.1,
+            "end_offset_sec": null,
+            "grounding": "mood"
+          }
+        ],
+        "signature": {
+          "enabled": false,
+          "text": "",
+          "duration": 0.0
+        },
+        "style_preset": "clean_vlog",
+        "max_captions": 3
+      },
+      "created_at": "2026-08-06T06:58:22+00:00"
+    },
+    {
+      "timeline_id": "fe1c49ae48374f0cb6a720772d1c8825-2",
+      "round_id": "fe1c49ae48374f0cb6a720772d1c8825",
+      "media_set_id": "photos_c",
+      "project": "web_9580e3b1cd",
+      "axis": "avg_cut_duration",
+      "axis_value": 2.8,
+      "variant_index": 2,
+      "edl": {
+        "project": "web_9580e3b1cd",
+        "version": "1.0",
+        "generator": "ai",
+        "canvas": {
+          "width": 1080,
+          "height": 1920
+        },
+        "frame": {
+          "aspect": "9:16",
+          "width": 1080,
+          "height": 1920,
+          "y_offset": 0
+        },
+        "aesthetic": {
+          "lut": "",
+          "grain": 0.0,
+          "bloom": 0.0,
+          "scanlines": false,
+          "camcorder_osd": false,
+          "allow_flash": false
+        },
+        "audio": {
+          "bgm_id": "demo_track",
+          "start_sec": 0.0,
+          "volume": 0.8
+        },
+        "timeline": [
+          {
+            "order": 1,
+            "segment_id": "still_01#s001",
+            "source_file": "still_01.mp4",
+            "in_sec": 0.5,
+            "out_sec": 3.5,
+            "transition": "cut",
+            "role": "hook",
+            "evidence_frame_ids": [
+              "still_01#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.55,
+            "focus_y": 0.48,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.51,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.78
+          },
+          {
+            "order": 2,
+            "segment_id": "KakaoTalk_20260804_145923101#s001",
+            "source_file": "KakaoTalk_20260804_145923101.mp4",
+            "in_sec": 2.5,
+            "out_sec": 5.5,
+            "transition": "cut",
+            "role": "zlog_moment",
+            "evidence_frame_ids": [
+              "KakaoTalk_20260804_145923101#s001#f01",
+              "KakaoTalk_20260804_145923101#s001#f02",
+              "KakaoTalk_20260804_145923101#s001#f03",
+              "KakaoTalk_20260804_145923101#s001#f04",
+              "KakaoTalk_20260804_145923101#s001#f05"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.5,
+            "motion": "none",
+            "motion_strength": 0.05,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.7
+          },
+          {
+            "order": 3,
+            "segment_id": "still_02#s001",
+            "source_file": "still_02.mp4",
+            "in_sec": 0.5,
+            "out_sec": 3.5,
+            "transition": "cut",
+            "role": "development",
+            "evidence_frame_ids": [
+              "still_02#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.45,
+            "focus_y": 0.45,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.4,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.85
+          },
+          {
+            "order": 4,
+            "segment_id": "still_03#s001",
+            "source_file": "still_03.mp4",
+            "in_sec": 0.5,
+            "out_sec": 3.5,
+            "transition": "cut",
+            "role": "development",
+            "evidence_frame_ids": [
+              "still_03#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.4,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.39,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.8
+          },
+          {
+            "order": 5,
+            "segment_id": "KakaoTalk_20260804_145857844#s003",
+            "source_file": "KakaoTalk_20260804_145857844.mp4",
+            "in_sec": 8.5,
+            "out_sec": 11.5,
+            "transition": "cut",
+            "role": "release",
+            "evidence_frame_ids": [
+              "KakaoTalk_20260804_145857844#s003#f01",
+              "KakaoTalk_20260804_145857844#s003#f02",
+              "KakaoTalk_20260804_145857844#s003#f03",
+              "KakaoTalk_20260804_145857844#s003#f04",
+              "KakaoTalk_20260804_145857844#s003#f05"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.55,
+            "focus_y": 0.5,
+            "motion": "none",
+            "motion_strength": 0.05,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.72
+          },
+          {
+            "order": 6,
+            "segment_id": "still_04#s001",
+            "source_file": "still_04.mp4",
+            "in_sec": 0.5,
+            "out_sec": 3.5,
+            "transition": "cut",
+            "role": "resonance",
+            "evidence_frame_ids": [
+              "still_04#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.45,
+            "motion": "ken_burns_out",
+            "motion_strength": 0.41000000000000003,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.9
+          }
+        ],
+        "captions": [
+          {
+            "segment_id": "still_01#s001",
+            "text": "Sculptural mask or head object with warm lighting",
+            "style": "subtitle",
+            "font": "body",
+            "position": "bottom",
+            "start_offset_sec": 0.15,
+            "end_offset_sec": null,
+            "grounding": "visually_grounded_facts"
+          },
+          {
+            "segment_id": "still_04#s001",
+            "text": "bright",
+            "style": "lower_third",
+            "font": "body",
+            "position": "bottom",
+            "start_offset_sec": 0.1,
+            "end_offset_sec": null,
+            "grounding": "mood"
+          }
+        ],
+        "signature": {
+          "enabled": false,
+          "text": "",
+          "duration": 0.0
+        },
+        "style_preset": "clean_vlog",
+        "max_captions": 3
+      },
+      "created_at": "2026-08-06T06:58:22+00:00"
+    },
+    {
+      "timeline_id": "fe1c49ae48374f0cb6a720772d1c8825-3",
+      "round_id": "fe1c49ae48374f0cb6a720772d1c8825",
+      "media_set_id": "photos_c",
+      "project": "web_9580e3b1cd",
+      "axis": "avg_cut_duration",
+      "axis_value": 4.0,
+      "variant_index": 3,
+      "edl": {
+        "project": "web_9580e3b1cd",
+        "version": "1.0",
+        "generator": "ai",
+        "canvas": {
+          "width": 1080,
+          "height": 1920
+        },
+        "frame": {
+          "aspect": "9:16",
+          "width": 1080,
+          "height": 1920,
+          "y_offset": 0
+        },
+        "aesthetic": {
+          "lut": "",
+          "grain": 0.0,
+          "bloom": 0.0,
+          "scanlines": false,
+          "camcorder_osd": false,
+          "allow_flash": false
+        },
+        "audio": {
+          "bgm_id": "demo_track",
+          "start_sec": 0.0,
+          "volume": 0.8
+        },
+        "timeline": [
+          {
+            "order": 1,
+            "segment_id": "still_01#s001",
+            "source_file": "still_01.mp4",
+            "in_sec": 0.0,
+            "out_sec": 4.0,
+            "transition": "cut",
+            "role": "hook",
+            "evidence_frame_ids": [
+              "still_01#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.55,
+            "focus_y": 0.48,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.51,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.78
+          },
+          {
+            "order": 2,
+            "segment_id": "KakaoTalk_20260804_145923101#s001",
+            "source_file": "KakaoTalk_20260804_145923101.mp4",
+            "in_sec": 2.0,
+            "out_sec": 6.0,
+            "transition": "cut",
+            "role": "zlog_moment",
+            "evidence_frame_ids": [
+              "KakaoTalk_20260804_145923101#s001#f01",
+              "KakaoTalk_20260804_145923101#s001#f02",
+              "KakaoTalk_20260804_145923101#s001#f03",
+              "KakaoTalk_20260804_145923101#s001#f04",
+              "KakaoTalk_20260804_145923101#s001#f05"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.5,
+            "motion": "none",
+            "motion_strength": 0.05,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.7
+          },
+          {
+            "order": 3,
+            "segment_id": "still_02#s001",
+            "source_file": "still_02.mp4",
+            "in_sec": 0.0,
+            "out_sec": 4.0,
+            "transition": "cut",
+            "role": "development",
+            "evidence_frame_ids": [
+              "still_02#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.45,
+            "focus_y": 0.45,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.4,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.85
+          },
+          {
+            "order": 4,
+            "segment_id": "still_03#s001",
+            "source_file": "still_03.mp4",
+            "in_sec": 0.0,
+            "out_sec": 4.0,
+            "transition": "cut",
+            "role": "development",
+            "evidence_frame_ids": [
+              "still_03#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.4,
+            "motion": "ken_burns_in",
+            "motion_strength": 0.39,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.8
+          },
+          {
+            "order": 5,
+            "segment_id": "KakaoTalk_20260804_145857844#s003",
+            "source_file": "KakaoTalk_20260804_145857844.mp4",
+            "in_sec": 8.0,
+            "out_sec": 11.999,
+            "transition": "cut",
+            "role": "release",
+            "evidence_frame_ids": [
+              "KakaoTalk_20260804_145857844#s003#f01",
+              "KakaoTalk_20260804_145857844#s003#f02",
+              "KakaoTalk_20260804_145857844#s003#f03",
+              "KakaoTalk_20260804_145857844#s003#f04",
+              "KakaoTalk_20260804_145857844#s003#f05"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.55,
+            "focus_y": 0.5,
+            "motion": "none",
+            "motion_strength": 0.05,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.72
+          },
+          {
+            "order": 6,
+            "segment_id": "still_04#s001",
+            "source_file": "still_04.mp4",
+            "in_sec": 0.0,
+            "out_sec": 4.0,
+            "transition": "cut",
+            "role": "resonance",
+            "evidence_frame_ids": [
+              "still_04#s001#f01"
+            ],
+            "fit_mode": "subject_aware_cover",
+            "focus_x": 0.5,
+            "focus_y": 0.45,
+            "motion": "ken_burns_out",
+            "motion_strength": 0.41000000000000003,
+            "overlay": null,
+            "reuse_reason": null,
+            "crop_confidence": 0.9
+          }
+        ],
+        "captions": [
+          {
+            "segment_id": "still_01#s001",
+            "text": "Sculptural mask or head object with warm lighting",
+            "style": "subtitle",
+            "font": "body",
+            "position": "bottom",
+            "start_offset_sec": 0.15,
+            "end_offset_sec": null,
+            "grounding": "visually_grounded_facts"
+          },
+          {
+            "segment_id": "still_04#s001",
+            "text": "bright",
+            "style": "lower_third",
+            "font": "body",
+            "position": "bottom",
+            "start_offset_sec": 0.1,
+            "end_offset_sec": null,
+            "grounding": "mood"
+          }
+        ],
+        "signature": {
+          "enabled": false,
+          "text": "",
+          "duration": 0.0
+        },
+        "style_preset": "clean_vlog",
+        "max_captions": 3
+      },
+      "created_at": "2026-08-06T06:58:22+00:00"
+    }
+  ],
+  "renders": [
+    {
+      "timeline_id": "fe1c49ae48374f0cb6a720772d1c8825-0",
+      "variant_index": 0,
+      "axis": "avg_cut_duration",
+      "axis_value": 0.4,
+      "video_path": "work/web_9580e3b1cd/taste_loop/fe1c49ae48374f0cb6a720772d1c8825/fe1c49ae48374f0cb6a720772d1c8825-0.mp4",
+      "ok": true,
+      "error": null,
+      "attempts": 1,
+      "render_seconds": 17.89
+    },
+    {
+      "timeline_id": "fe1c49ae48374f0cb6a720772d1c8825-1",
+      "variant_index": 1,
+      "axis": "avg_cut_duration",
+      "axis_value": 1.6,
+      "video_path": "work/web_9580e3b1cd/taste_loop/fe1c49ae48374f0cb6a720772d1c8825/fe1c49ae48374f0cb6a720772d1c8825-1.mp4",
+      "ok": true,
+      "error": null,
+      "attempts": 1,
+      "render_seconds": 50.0
+    },
+    {
+      "timeline_id": "fe1c49ae48374f0cb6a720772d1c8825-2",
+      "variant_index": 2,
+      "axis": "avg_cut_duration",
+      "axis_value": 2.8,
+      "video_path": null,
+      "ok": false,
+      "error": "RuntimeError: command failed (exit 1): C:\\Program Files\\nodejs\\npx.CMD remotion render src/index.ts ZlogFilm C:\\Users\\hp_user\\Desktop\\Zlog\\work\\web_9580e3b1cd\\taste_loop\\fe1c49ae48374f0cb6a720772d1c8825\\fe1c49ae48374f0cb6a720772d1c8825-2\\render.mp4 --props=C:\\Users\\hp_user\\Desktop\\Zlog\\work\\web_9580e3b1cd\\taste_loop\\fe1c49ae48374f0cb6a720772d1c8825\\fe1c49ae48374f0cb6a720772d1c8825-2\\edl_resolved.json --concurrency=2 --scale=0.4",
+      "attempts": 2,
+      "render_seconds": 126.18
+    },
+    {
+      "timeline_id": "fe1c49ae48374f0cb6a720772d1c8825-3",
+      "variant_index": 3,
+      "axis": "avg_cut_duration",
+      "axis_value": 4.0,
+      "video_path": null,
+      "ok": false,
+      "error": "RuntimeError: command failed (exit 1): C:\\Program Files\\nodejs\\npx.CMD remotion render src/index.ts ZlogFilm C:\\Users\\hp_user\\Desktop\\Zlog\\work\\web_9580e3b1cd\\taste_loop\\fe1c49ae48374f0cb6a720772d1c8825\\fe1c49ae48374f0cb6a720772d1c8825-3\\render.mp4 --props=C:\\Users\\hp_user\\Desktop\\Zlog\\work\\web_9580e3b1cd\\taste_loop\\fe1c49ae48374f0cb6a720772d1c8825\\fe1c49ae48374f0cb6a720772d1c8825-3\\edl_resolved.json --concurrency=2 --scale=0.4",
+      "attempts": 2,
+      "render_seconds": 125.59
+    }
+  ],
+  "winner_id": null,
+  "resolved": false,
+  "rejected_all": false,
+  "style_profile_version": 1,
+  "created_at": "2026-08-06T06:58:22+00:00",
+  "resolved_at": null
+}

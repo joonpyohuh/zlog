@@ -72,6 +72,34 @@ Dev mode exposes stage / provider / model / latency / tokens / cost / escalation
 YouTube 썸네일 → `taste_profile.json` 자동 덮어쓰기는 **비활성**  
 (`ZLOG_ALLOW_YOUTUBE_TASTE_OVERWRITE=1` 일 때만 옵트인).
 
+## 취향 수집 루프 (taste loop)
+
+같은 미디어 묶음으로 **한 축만** 다르게 한 영상 4개를 만들고, 화면에서 하나를 고른다.
+그 선택이 쌓이면 통계로 StyleProfile의 값 범위를 좁힌다. 모델 학습은 하지 않는다.
+
+```bash
+# 1. 미디어 묶음 등록 (여러 개 등록 가능, 라운드마다 자동 로테이션)
+python -m pipeline.taste_loop.cli register-media-set --id trip_a --project trip_01 --bgm demo_track
+
+# 2. 라운드 시작 — 변형 4개 생성 + 순차 렌더 + 라운드 기록
+python -m pipeline.taste_loop.cli start-round --axis avg_cut_duration
+
+# 3. 화면에서 고르기 (설정값은 화면에 안 나온다)
+cd next-web && npm run dev        # → http://localhost:3000/taste/compare
+
+# 4. 5개 이상 쌓이면 범위 좁히기 (before/after 출력, 이전 버전 보존)
+python -m pipeline.taste_loop.update_profile
+```
+
+축: `avg_cut_duration` · `caption_frequency` · `push_in_strength` · `non_hard_cut_ratio`.
+선택 로그는 기본적으로 `taste/taste_loop/`에 저장되고, `ZLOG_TASTE_STORE=supabase`로
+Supabase(`supabase/migrations/20260806_taste_loop.sql`)에 쓸 수 있다.
+
+`/taste/review/[timelineId]`에서 스페이스바로 구간을 찍어 좋음/나쁨을 남길 수 있다 —
+그 시점에 무슨 효과가 걸려 있었는지는 사람이 입력하지 않고 timeline JSON에서 코드가 채운다.
+
+자세한 계약은 [CLAUDE.md](CLAUDE.md)의 "취향 수집 루프" 절 참고.
+
 ## 평가
 
 ```bash
@@ -90,6 +118,7 @@ zlog/
   run.py                 # CLI 오케스트레이터
   server.py              # FastAPI job API
   pipeline/              # split…evaluate_plan, product_pipeline, ai/
+    taste_loop/          # 4지선다 취향 수집 루프
   render/                # Remotion
   web/                   # Vite composer
   next-web/              # Next.js Studio + billing
