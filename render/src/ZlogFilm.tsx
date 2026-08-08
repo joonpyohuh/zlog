@@ -33,11 +33,12 @@ const FlashIn: React.FC = () => {
 /** Root composition: timeline Sequences + style-gated overlays. */
 export const ZlogFilm: React.FC<ZlogFilmProps> = ({edl}) => {
   const {fps, durationInFrames} = useVideoConfig();
-  void ensureFontsLoaded();
+  ensureFontsLoaded();
 
   const style = resolveStyle(edl);
 
-  const orderedClips = [...edl.timeline].sort((a, b) => a.order - b.order);
+  // Timeline array order is authoritative. The renderer never re-decides edit order.
+  const orderedClips = edl.timeline;
   let cursor = 0;
   const placedClips = orderedClips.map((clip) => {
     const clipDurationFrames = Math.max(1, Math.round((clip.out_sec - clip.in_sec) * fps));
@@ -54,13 +55,11 @@ export const ZlogFilm: React.FC<ZlogFilmProps> = ({edl}) => {
     }
   }
 
-  // Sparse captions: keep at most 3 on screen timeline; require grounding.
+  // Caption count and timing are editorial decisions; the renderer only validates grounding.
   const groundedCaptions = (edl.captions ?? []).filter(
     (c) => (c.grounding || '').trim().length > 0 && (c.text || '').trim().length > 0,
   );
-  const sparseCaptions = groundedCaptions.slice(0, 3);
-
-  const placedCaptions = sparseCaptions.flatMap((caption, i) => {
+  const placedCaptions = groundedCaptions.flatMap((caption, i) => {
     const host = bySegment.get(caption.segment_id);
     if (!host) return [];
     const clipDurSec = host.clip.out_sec - host.clip.in_sec;

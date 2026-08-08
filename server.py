@@ -34,7 +34,6 @@ WORK_ROOT = REPO_ROOT / "work"
 JOBS_ROOT = REPO_ROOT / ".zlog_jobs"
 WEB_DIST = REPO_ROOT / "web" / "dist"
 TASTE_PATH = REPO_ROOT / "taste" / "taste_profile.json"
-DEFAULT_BGM = "demo_track"
 # Keep local renders bounded while giving larger uploads room to breathe.
 DEFAULT_DURATION = 12.0
 WEB_DURATION_CAP = float(os.getenv("ZLOG_WEB_DURATION_CAP", "30"))
@@ -59,7 +58,9 @@ def _mark_stale_jobs() -> None:
         if job.get("status") in ("queued", "running"):
             job["status"] = "error"
             job["error"] = "Interrupted — server restarted. Try again."
-            path.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
+            path.write_text(
+                json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
 
 
 @asynccontextmanager
@@ -115,7 +116,9 @@ def _target_duration(upload_count: int = 0) -> float:
     return min(WEB_DURATION_CAP, suggest_target_duration_sec(upload_count))
 
 
-def _image_to_proxy_clip(image: Path, out: Path, seconds: float, *, upload_index: int = 0) -> dict:
+def _image_to_proxy_clip(
+    image: Path, out: Path, seconds: float, *, upload_index: int = 0
+) -> dict:
     """Aspect-preserving still proxy — 9:16 crop happens only in Remotion."""
     from pipeline.still_proxy import image_to_proxy_clip
 
@@ -160,7 +163,11 @@ def _read_job(job_id: str) -> dict | None:
 def _set_job(job_id: str, **fields) -> None:
     with _jobs_lock:
         path = _job_path(job_id)
-        job = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"id": job_id}
+        job = (
+            json.loads(path.read_text(encoding="utf-8"))
+            if path.exists()
+            else {"id": job_id}
+        )
         job.update(fields)
         # Cap oversized Remotion dumps so the status JSON stays valid/readable.
         if isinstance(job.get("detail"), str) and len(job["detail"]) > 2500:
@@ -168,14 +175,6 @@ def _set_job(job_id: str, **fields) -> None:
         tmp = path.with_suffix(".tmp")
         tmp.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
         tmp.replace(path)
-
-
-def _resolve_bgm() -> Path:
-    for ext in ("wav", "mp3"):
-        candidate = REPO_ROOT / "assets" / "bgm" / f"{DEFAULT_BGM}.{ext}"
-        if candidate.exists():
-            return candidate
-    raise FileNotFoundError(f"BGM '{DEFAULT_BGM}' not found")
 
 
 def _friendly_error(exc: Exception) -> str:
@@ -238,8 +237,9 @@ def _process_job(
             raise RuntimeError("no usable photo or video uploaded")
 
         duration = _target_duration(len(images) + len(videos))
-        bgm = _resolve_bgm()
-        use_hybrid = bool(os.getenv("ANTHROPIC_API_KEY"))
+        # Asset analysis has a grounded local fallback, so the content-led editor
+        # remains the product path even when no external AI key is configured.
+        use_hybrid = True
         mode = (quality_mode or "balanced").strip().lower()
         if mode not in ("economy", "balanced", "premium", "max"):
             mode = "balanced"
@@ -249,7 +249,7 @@ def _process_job(
             status="running",
             stage="prepare",
             duration_s=duration,
-            generator="hybrid" if use_hybrid else "baseline",
+            generator="editorial",
             quality_mode=mode,
             dev_mode=bool(dev_mode),
         )
@@ -315,7 +315,7 @@ def _process_job(
             work_root=WORK_ROOT,
             footage_dir=footage_dir,
             project=project,
-            bgm_track=bgm,
+            bgm_track=None,
             target_duration_s=duration,
             quality_mode=mode,
             force=True,
@@ -326,11 +326,15 @@ def _process_job(
             render_concurrency=WEB_RENDER_CONCURRENCY,
             use_hybrid=use_hybrid,
         )
+        final_short = WORK_ROOT / project / "final_short.mp4"
+        if result.final_path.exists():
+            shutil.copy2(result.final_path, final_short)
 
         done_fields = {
             "status": "done",
             "stage": "done",
             "video_url": f"/api/jobs/{job_id}/video",
+            "short_video_url": f"/api/jobs/{job_id}/video/short",
             "finished_at": time.time(),
             "generator": result.generator,
             "quality_mode": result.quality_mode,
@@ -341,7 +345,9 @@ def _process_job(
             done_fields["telemetry"] = [s.public_dict() for s in result.stages]
         _set_job(job_id, **done_fields)
     except Exception as exc:  # noqa: BLE001 - persist every pipeline failure in the job status
-        _set_job(job_id, status="error", error=_friendly_error(exc), detail=str(exc)[:1200])
+        _set_job(
+            job_id, status="error", error=_friendly_error(exc), detail=str(exc)[:1200]
+        )
 
 
 @app.post("/api/jobs")
@@ -374,7 +380,9 @@ async def create_job(
         suffix = Path(upload.filename).suffix.lower()
         if suffix not in ALLOWED_UPLOAD_EXTENSIONS:
             shutil.rmtree(footage_dir, ignore_errors=True)
-            raise HTTPException(415, f"Unsupported file type: {_safe_name(upload.filename)}")
+            raise HTTPException(
+                415, f"Unsupported file type: {_safe_name(upload.filename)}"
+            )
         dest = footage_dir / _safe_name(upload.filename)
         size = 0
         with dest.open("wb") as output:
@@ -383,7 +391,9 @@ async def create_job(
                 total_bytes += len(chunk)
                 if total_bytes > MAX_UPLOAD_BYTES:
                     shutil.rmtree(footage_dir, ignore_errors=True)
-                    raise HTTPException(413, "Uploads are too large. Try fewer or shorter clips.")
+                    raise HTTPException(
+                        413, "Uploads are too large. Try fewer or shorter clips."
+                    )
                 output.write(chunk)
         if size:
             upload_names.append(dest.name)
@@ -508,7 +518,11 @@ def review_items(job_id: str):
     edl_path = project_dir / "edl_ai.json"
     if not edl_path.exists():
         edl_path = project_dir / "edl_baseline.json"
-    edl = json.loads(edl_path.read_text(encoding="utf-8")) if edl_path.exists() else {"timeline": []}
+    edl = (
+        json.loads(edl_path.read_text(encoding="utf-8"))
+        if edl_path.exists()
+        else {"timeline": []}
+    )
     selected_ids = {c["segment_id"] for c in edl.get("timeline", [])}
 
     items = []
@@ -587,6 +601,309 @@ async def submit_review(job_id: str, payload: dict):
         )
         recorded += 1
     return {"ok": True, "recorded": recorded}
+
+
+def _job_project_dir(job_id: str) -> tuple[dict, Path]:
+    job = _read_job(job_id)
+    if not job:
+        raise HTTPException(404, "Job not found.")
+    project_dir = WORK_ROOT / str(job.get("project"))
+    if not project_dir.is_dir():
+        raise HTTPException(404, "Project artifacts not found.")
+    return job, project_dir
+
+
+def _timeline_path(project_dir: Path, output_type: str) -> Path:
+    if output_type not in {"long", "short"}:
+        raise HTTPException(400, "output_type must be long or short")
+    return project_dir / f"timeline_{output_type}.json"
+
+
+def _save_timeline_artifacts(project_dir: Path, timeline):
+    from pipeline.editorial_intelligence import critique_timeline, timeline_to_edl
+    from pipeline.editorial_models import EditingIntent, TripGraph
+    from pipeline.music_catalog import load_catalog
+
+    graph = TripGraph.model_validate_json(
+        (project_dir / "trip_graph.json").read_text(encoding="utf-8")
+    )
+    intent = EditingIntent.model_validate_json(
+        (project_dir / "editing_intent.json").read_text(encoding="utf-8")
+    )
+    timeline_path = _timeline_path(project_dir, timeline.output_type)
+    timeline_path.write_text(timeline.model_dump_json(indent=2), encoding="utf-8")
+    critic = critique_timeline(timeline, graph, intent)
+    (project_dir / f"critic_{timeline.output_type}.json").write_text(
+        critic.model_dump_json(indent=2), encoding="utf-8"
+    )
+    music_stem = None
+    if timeline.music:
+        track = next(
+            (
+                item
+                for item in load_catalog(
+                    REPO_ROOT / "assets" / "music" / "catalog.json"
+                )
+                if item.music_id == timeline.music.music_id
+            ),
+            None,
+        )
+        if not track:
+            raise HTTPException(400, "Selected music is no longer in the catalog.")
+        music_stem = Path(track.file).stem
+    edl = timeline_to_edl(timeline, music_id=music_stem)
+    edl_path = project_dir / f"edl_{timeline.output_type}.json"
+    edl_path.write_text(edl.model_dump_json(indent=2), encoding="utf-8")
+    if timeline.output_type == "short":
+        (project_dir / "edl_ai.json").write_text(
+            edl.model_dump_json(indent=2), encoding="utf-8"
+        )
+    return critic
+
+
+def _append_editorial_feedback(project_dir: Path, payload: dict) -> None:
+    payload = {"created_at": time.time(), **payload}
+    with (project_dir / "editorial_feedback.jsonl").open(
+        "a", encoding="utf-8"
+    ) as stream:
+        stream.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+@app.get("/api/jobs/{job_id}/editor")
+def get_editor_project(job_id: str):
+    _, project_dir = _job_project_dir(job_id)
+    names = {
+        "trip_graph": "trip_graph.json",
+        "editing_intent": "editing_intent.json",
+        "long_timeline": "timeline_long.json",
+        "short_timeline": "timeline_short.json",
+        "long_critic": "critic_long.json",
+        "short_critic": "critic_short.json",
+    }
+    missing = [name for name in names.values() if not (project_dir / name).exists()]
+    if missing:
+        raise HTTPException(409, f"Editorial artifacts are not ready: {missing}")
+    return {
+        key: json.loads((project_dir / name).read_text(encoding="utf-8"))
+        for key, name in names.items()
+    }
+
+
+@app.put("/api/jobs/{job_id}/timelines/{output_type}")
+async def update_timeline(job_id: str, output_type: str, payload: dict):
+    from pydantic import ValidationError
+
+    from pipeline.editorial_models import EditTimeline
+
+    _, project_dir = _job_project_dir(job_id)
+    path = _timeline_path(project_dir, output_type)
+    if not path.exists():
+        raise HTTPException(404, "Timeline not found.")
+    current = EditTimeline.model_validate_json(path.read_text(encoding="utf-8"))
+    try:
+        proposed = EditTimeline.model_validate(payload.get("timeline", payload))
+    except ValidationError as exc:
+        raise HTTPException(422, "Timeline validation failed.") from exc
+    if proposed.project != current.project or proposed.output_type != output_type:
+        raise HTTPException(400, "Timeline does not belong to this project/output.")
+    if proposed.revision != current.revision:
+        raise HTTPException(409, "Timeline changed; reload before saving again.")
+    saved = proposed.model_copy(update={"revision": current.revision + 1})
+    critic = _save_timeline_artifacts(project_dir, saved)
+    _append_editorial_feedback(
+        project_dir,
+        {
+            "action": "timeline_update",
+            "output_type": output_type,
+            "revision": saved.revision,
+            "before_order": [item.scene_id for item in current.video_items],
+            "after_order": [item.scene_id for item in saved.video_items],
+            "before_durations": {
+                item.item_id: item.duration_frames for item in current.video_items
+            },
+            "after_durations": {
+                item.item_id: item.duration_frames for item in saved.video_items
+            },
+        },
+    )
+    return {
+        "timeline": saved.model_dump(mode="json"),
+        "critic": critic.model_dump(mode="json"),
+    }
+
+
+@app.get("/api/music/search")
+def music_search(q: str = ""):
+    from pipeline.music_catalog import load_catalog, search_music
+
+    tracks = search_music(
+        q, load_catalog(REPO_ROOT / "assets" / "music" / "catalog.json")
+    )
+    return {
+        "tracks": [
+            {
+                **track.model_dump(mode="json"),
+                "preview_url": f"/api/music/{track.music_id}/audio",
+            }
+            for track in tracks
+        ]
+    }
+
+
+@app.get("/api/music/{music_id}/audio")
+def music_audio(music_id: str):
+    from pipeline.music_catalog import load_catalog, resolve_music_file
+
+    track = next(
+        (
+            item
+            for item in load_catalog(REPO_ROOT / "assets" / "music" / "catalog.json")
+            if item.music_id == music_id
+        ),
+        None,
+    )
+    if not track:
+        raise HTTPException(404, "Music not found.")
+    path = resolve_music_file(track, REPO_ROOT)
+    return FileResponse(path, media_type="audio/wav", filename=path.name)
+
+
+@app.get("/api/jobs/{job_id}/music-recommendations")
+def music_recommendations(
+    job_id: str,
+    day_id: str | None = None,
+    event_id: str | None = None,
+):
+    from pipeline.editorial_models import EditingIntent, TripGraph
+    from pipeline.music_catalog import load_catalog, recommend_music
+
+    _, project_dir = _job_project_dir(job_id)
+    graph = TripGraph.model_validate_json(
+        (project_dir / "trip_graph.json").read_text(encoding="utf-8")
+    )
+    intent = EditingIntent.model_validate_json(
+        (project_dir / "editing_intent.json").read_text(encoding="utf-8")
+    )
+    tracks = recommend_music(
+        graph,
+        intent,
+        load_catalog(REPO_ROOT / "assets" / "music" / "catalog.json"),
+        day_id=day_id,
+        event_id=event_id,
+    )
+    return {
+        "tracks": [
+            {
+                **track.model_dump(mode="json"),
+                "preview_url": f"/api/music/{track.music_id}/audio",
+            }
+            for track in tracks
+        ]
+    }
+
+
+@app.post("/api/jobs/{job_id}/music")
+async def select_music(job_id: str, payload: dict):
+    from pipeline.editorial_models import EditTimeline, TimelineMusicItem
+    from pipeline.music_catalog import load_catalog
+
+    _, project_dir = _job_project_dir(job_id)
+    output_type = str(payload.get("output_type") or "short")
+    path = _timeline_path(project_dir, output_type)
+    timeline = EditTimeline.model_validate_json(path.read_text(encoding="utf-8"))
+    requested_revision = payload.get("revision")
+    if requested_revision is not None:
+        try:
+            revision = int(requested_revision)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(422, "revision must be an integer.") from exc
+        if revision != timeline.revision:
+            raise HTTPException(409, "Timeline changed; reload before selecting music.")
+    music_id = payload.get("music_id")
+    music = None
+    if music_id:
+        tracks = load_catalog(REPO_ROOT / "assets" / "music" / "catalog.json")
+        if not any(track.music_id == music_id for track in tracks):
+            raise HTTPException(404, "Music not found.")
+        music = TimelineMusicItem(
+            music_id=str(music_id),
+            duration_frames=timeline.duration_frames,
+            selected_by_user=True,
+        )
+    timeline = timeline.model_copy(
+        update={"music": music, "revision": timeline.revision + 1}
+    )
+    _save_timeline_artifacts(project_dir, timeline)
+    _append_editorial_feedback(
+        project_dir,
+        {
+            "action": "music_selection",
+            "output_type": output_type,
+            "revision": timeline.revision,
+            "music_id": music_id,
+        },
+    )
+    return {"timeline": timeline.model_dump(mode="json")}
+
+
+def _render_saved_timeline(job_id: str, output_type: str) -> None:
+    try:
+        from run import _stage_render
+
+        job, project_dir = _job_project_dir(job_id)
+        _set_job(job_id, status="running", stage=f"render_{output_type}")
+        rendered = project_dir / f"render_{output_type}.mp4"
+        _stage_render(
+            project_dir,
+            force=True,
+            scale=WEB_RENDER_SCALE,
+            concurrency=WEB_RENDER_CONCURRENCY,
+            edl_path=project_dir / f"edl_{output_type}.json",
+            out_path=rendered,
+        )
+        final = project_dir / f"final_{output_type}.mp4"
+        shutil.copy2(rendered, final)
+        _set_job(
+            job_id,
+            status="done",
+            stage="done",
+            **{
+                f"{output_type}_video_url": f"/api/jobs/{job_id}/video/{output_type}",
+                "video_url": (
+                    f"/api/jobs/{job_id}/video/{output_type}"
+                    if output_type == "short"
+                    else job.get("video_url")
+                ),
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 - background render boundary
+        _set_job(
+            job_id, status="error", error=_friendly_error(exc), detail=str(exc)[:1200]
+        )
+
+
+@app.post("/api/jobs/{job_id}/render/{output_type}")
+def render_saved_timeline(job_id: str, output_type: str):
+    _job_project_dir(job_id)
+    _timeline_path(WORK_ROOT, output_type)  # validates output type only
+    threading.Thread(
+        target=_render_saved_timeline,
+        args=(job_id, output_type),
+        daemon=True,
+    ).start()
+    return {"ok": True, "status": "queued", "output_type": output_type}
+
+
+@app.get("/api/jobs/{job_id}/video/{output_type}")
+def get_output_video(job_id: str, output_type: str):
+    _, project_dir = _job_project_dir(job_id)
+    _timeline_path(project_dir, output_type)
+    final = project_dir / f"final_{output_type}.mp4"
+    if not final.exists():
+        raise HTTPException(404, "Output has not been rendered yet.")
+    return FileResponse(
+        final, media_type="video/mp4", filename=f"zlog-{output_type}.mp4"
+    )
 
 
 if WEB_DIST.exists():

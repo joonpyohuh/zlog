@@ -2,6 +2,8 @@
 
 import {useCallback, useEffect, useRef, useState, type KeyboardEvent} from 'react';
 
+import {EditorialWorkspace} from './EditorialWorkspace';
+
 type Attachment = {
   id: string;
   file: File;
@@ -27,6 +29,8 @@ type JobStatus = {
   stage?: string;
   error?: string;
   video_url?: string;
+  long_video_url?: string;
+  short_video_url?: string;
   generator?: string;
   duration_s?: number;
   progress_pct?: number;
@@ -56,6 +60,8 @@ const STAGE_COPY: Record<string, string> = {
   render: 'Rendering film',
   grade: 'Color grade',
   audio: 'Audio mix',
+  render_long: 'Rendering long film',
+  render_short: 'Rendering short film',
   done: 'Ready',
 };
 
@@ -73,9 +79,11 @@ function stageLabel(stage?: string) {
 export function StudioComposer({
   apiBase,
   devModeDefault = false,
+  initialJobId,
 }: {
   apiBase: string;
   devModeDefault?: boolean;
+  initialJobId?: string;
 }) {
   const base = apiBase.replace(/\/$/, '');
   const apiUrl = useCallback((path: string) => {
@@ -86,7 +94,9 @@ export function StudioComposer({
   const [text, setText] = useState('');
   const [files, setFiles] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
-  const [job, setJob] = useState<JobStatus | null>(null);
+  const [job, setJob] = useState<JobStatus | null>(
+    initialJobId ? {id: initialJobId, status: 'running', stage: 'prepare'} : null,
+  );
   const [quality, setQuality] = useState<QualityMode>('balanced');
   const [devMode, setDevMode] = useState(devModeDefault);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -212,7 +222,7 @@ export function StudioComposer({
               : ''}
           </p>
           <p className="mt-1 text-sm text-neutral-500">
-            {job.quality_mode || quality} · {job.generator || 'hybrid'}
+            {job.quality_mode || quality} · {job.generator || 'editorial'}
             {job.duration_s ? ` · ~${Math.round(job.duration_s)}s` : ''}
             {typeof job.estimated_cost_usd_total === 'number'
               ? ` · ≈$${job.estimated_cost_usd_total.toFixed(4)}`
@@ -290,6 +300,18 @@ export function StudioComposer({
               New film
             </button>
           </div>
+          <EditorialWorkspace
+            apiBase={base}
+            jobId={job.id}
+            onRenderQueued={(output) => {
+              setBusy(true);
+              setJob((current) =>
+                current
+                  ? {...current, status: 'running', stage: `render_${output}`}
+                  : current,
+              );
+            }}
+          />
         </div>
       )}
 

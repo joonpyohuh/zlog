@@ -1,7 +1,6 @@
-import {continueRender, delayRender, staticFile} from 'remotion';
+import {staticFile} from 'remotion';
 
-let fontsPromise: Promise<void> | null = null;
-const FONT_LOAD_TIMEOUT_MS = 10000;
+let fontsRegistered = false;
 
 const FACES: Array<{family: string; file: string; weight: string; format: string}> = [
   {family: 'Pretendard', file: 'fonts/Pretendard-Regular.otf', weight: '400', format: 'opentype'},
@@ -15,49 +14,28 @@ const FACES: Array<{family: string; file: string; weight: string; format: string
   },
 ];
 
-/** Load local fonts staged into public/fonts by resolve-props.mjs. Idempotent. */
-export function ensureFontsLoaded(): Promise<void> {
-  if (fontsPromise) return fontsPromise;
-
-  const handle = delayRender('zlog-fonts', {timeoutInMilliseconds: 60000});
-  fontsPromise = Promise.all(
-    FACES.map(async ({family, file, weight, format}) => {
-      const face = new FontFace(family, `url(${staticFile(file)}) format('${format}')`, {
-        weight,
-        style: 'normal',
-        display: 'block',
-      });
-      let timeout: ReturnType<typeof setTimeout> | undefined;
-      const loaded = await Promise.race([
-        face.load(),
-        new Promise<never>((_, reject) => {
-          timeout = setTimeout(
-            () => reject(new Error(`font load timed out: ${family}`)),
-            FONT_LOAD_TIMEOUT_MS,
-          );
-        }),
-      ]).finally(() => clearTimeout(timeout));
-      // Older TS DOM libs type FontFaceSet without add(); runtime always has it.
-      (document.fonts as unknown as {add: (f: FontFace) => void}).add(loaded);
-    }),
-  )
-    .then(() => undefined)
-    // A missing/broken font falls back to system fonts — never fail the render
-    // (an unhandled rejection would) or leave the delayRender handle hanging.
-    .catch((err) => {
-      console.warn('zlog: font load failed, falling back to system fonts', err);
-    })
-    .finally(() => continueRender(handle));
-
-  return fontsPromise;
+/** Register local fonts without making typography a render-blocking resource. */
+export function ensureFontsLoaded(): void {
+  if (fontsRegistered || typeof document === 'undefined') return;
+  fontsRegistered = true;
+  for (const {family, file, weight, format} of FACES) {
+    const face = new FontFace(family, `url(${staticFile(file)}) format('${format}')`, {
+      weight,
+      style: 'normal',
+      display: 'swap',
+    });
+    // Older TS DOM libs type FontFaceSet without add(); runtime always has it.
+    (document.fonts as unknown as {add: (font: FontFace) => void}).add(face);
+    void face.load().catch((error: unknown) => {
+      console.warn(`zlog: ${family} font unavailable; using system fallback`, error);
+    });
+  }
 }
 
 export const FONT_BODY = 'Pretendard, "Noto Sans KR", sans-serif';
 export const FONT_DISPLAY = '"Space Grotesk", Pretendard, sans-serif';
 
-// Kick off loading at module-import time (same pattern as
-// @remotion/google-fonts) so the delayRender handle exists before the first
-// frame is captured — a useEffect-only trigger can race the screenshot.
+// Register at module import so the browser can begin loading before frame one.
 if (typeof document !== 'undefined') {
-  void ensureFontsLoaded();
+  ensureFontsLoaded();
 }

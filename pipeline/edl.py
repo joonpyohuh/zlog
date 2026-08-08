@@ -109,6 +109,7 @@ class Audio(BaseModel):
     bgm_id: str
     start_sec: float
     volume: float
+    enabled: bool = True
 
 
 class TimelineClip(BaseModel):
@@ -291,7 +292,9 @@ def validate_edl(
             continue
         clip_dur = clip.out_sec - clip.in_sec
         if not cap.text.strip():
-            problems.append(f"captions[{i}] segment_id={cap.segment_id!r} has empty text")
+            problems.append(
+                f"captions[{i}] segment_id={cap.segment_id!r} has empty text"
+            )
         if cap.start_offset_sec < 0 or cap.start_offset_sec >= clip_dur:
             problems.append(
                 f"captions[{i}] segment_id={cap.segment_id!r} "

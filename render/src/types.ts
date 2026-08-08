@@ -28,6 +28,7 @@ export type Audio = {
   bgm_id: string;
   start_sec: number;
   volume: number;
+  enabled?: boolean;
 };
 
 export type TimelineClip = {

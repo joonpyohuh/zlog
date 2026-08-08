@@ -93,10 +93,17 @@ const resolvedEdl = {
   ...edl,
   captions: edl.captions ?? [],
   shot_date: shotDateStamp(),
-  timeline: [...edl.timeline]
-    .sort((a, b) => a.order - b.order)
-    .map((clip) => ({...clip, src: resolveVideoSrc(edl.project, clip.source_file)})),
-  audio: {...edl.audio, src: resolveBgmSrc(edl.audio.bgm_id)},
+  timeline: edl.timeline.map((clip) => ({
+    ...clip,
+    src: resolveVideoSrc(edl.project, clip.source_file),
+  })),
+  audio: {
+    ...edl.audio,
+    src:
+      edl.audio?.enabled !== false && edl.audio?.bgm_id
+        ? resolveBgmSrc(edl.audio.bgm_id)
+        : '',
+  },
 };
 
 const outPath = path.resolve(outPathArg);

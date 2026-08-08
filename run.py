@@ -167,15 +167,17 @@ def _stage_render(
     progress: Callable[[int, int], None] | None = None,
     scale: float | None = None,
     concurrency: int | None = None,
+    edl_path: Path | None = None,
+    out_path: Path | None = None,
     **_,
 ) -> None:
-    edl_path = project_dir / "edl_ai.json"
-    if not edl_path.exists():
+    edl_path = edl_path or project_dir / "edl_ai.json"
+    if not edl_path.exists() and edl_path.name == "edl_ai.json":
         edl_path = project_dir / "edl_baseline.json"
     if not edl_path.exists():
         raise FileNotFoundError(f"no edl_ai.json or edl_baseline.json in {project_dir}")
 
-    out = project_dir / "render.mp4"
+    out = out_path or project_dir / "render.mp4"
     if out.exists() and not force:
         click.echo(f"  skip (exists): {out}")
         return
@@ -308,7 +310,7 @@ def pipeline(
             from_stage=from_stage,
             user_intent=intent,
             on_stage=on_stage,
-            use_hybrid=not baseline and bool(os.getenv("ANTHROPIC_API_KEY")),
+            use_hybrid=not baseline,
         )
     except Exception as exc:  # noqa: BLE001 - CLI boundary reports pipeline failures
         click.echo(f"\nFAILED: {exc}", err=True)

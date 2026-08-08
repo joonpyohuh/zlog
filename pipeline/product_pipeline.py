@@ -145,7 +145,9 @@ def _load_usage_file(path: Path) -> tuple[float, dict[str, Any]]:
     return cost, data
 
 
-def _usage_to_telemetry(stage: str, usage_path: Path, *, escalated: bool = False) -> StageTelemetry:
+def _usage_to_telemetry(
+    stage: str, usage_path: Path, *, escalated: bool = False
+) -> StageTelemetry:
     cost, data = _load_usage_file(usage_path)
     calls = data.get("calls") or []
     inp = sum(int(c.get("input_tokens") or 0) for c in calls)
@@ -179,7 +181,7 @@ def run_product_pipeline(
     work_root: Path,
     footage_dir: Path,
     project: str,
-    bgm_track: Path,
+    bgm_track: Path | None,
     target_duration_s: float,
     quality_mode: QualityMode | str | None = None,
     force: bool = True,
@@ -192,7 +194,7 @@ def run_product_pipeline(
     render_concurrency: int | None = None,
     use_hybrid: bool = True,
 ) -> PipelineResult:
-    """Run the hybrid product pipeline (or baseline fallback when use_hybrid=False)."""
+    """Run the editorial pipeline (or the explicitly requested legacy baseline)."""
     from pipeline import evidence as evidence_stage
     from pipeline import filter as filter_stage
     from pipeline import select_baseline, sheet
@@ -200,14 +202,12 @@ def run_product_pipeline(
     from pipeline.adaptive_perception import run_adaptive_perception
     from pipeline.analyze_assets import analyze_assets
     from pipeline.audio_engine import run_audio_engine
-    from pipeline.director import create_story_plan
-    from pipeline.evaluate_plan import evaluate_and_repair
+    from pipeline.editorial_intelligence import run_editorial_intelligence
     from pipeline.perception_models import EditingGoal
-    from pipeline.plan_timeline import plan_timeline
     from run import _stage_grade, _stage_render
 
     cfg = config or load_model_config()
-    mode: QualityMode = (quality_mode or cfg.quality_mode)  # type: ignore[assignment]
+    mode: QualityMode = quality_mode or cfg.quality_mode  # type: ignore[assignment]
     # Override config quality for this run (evaluate_plan / Sol gates).
     cfg = ModelConfig(
         analyzer_provider=cfg.analyzer_provider,
@@ -219,7 +219,9 @@ def run_product_pipeline(
         evaluator_model=cfg.evaluator_model,
         repair_provider=cfg.repair_provider,
         repair_model=cfg.repair_model,
-        quality_mode=mode if mode in ("economy", "balanced", "max", "premium") else "balanced",  # type: ignore[arg-type]
+        quality_mode=mode
+        if mode in ("economy", "balanced", "max", "premium")
+        else "balanced",  # type: ignore[arg-type]
     )
 
     project_dir = work_root / project
@@ -231,7 +233,7 @@ def run_product_pipeline(
 
     stages: list[StageTelemetry] = []
     total_cost = 0.0
-    generator = "hybrid"
+    generator = "editorial"
 
     def emit(stage: str, **extra: Any) -> None:
         if on_stage:
@@ -245,7 +247,13 @@ def run_product_pipeline(
             payload.update(extra)
             on_stage(stage, payload)
 
-    def timed(stage: str, fn: Callable[[], Any], *, provider: str | None = None, model: str | None = None) -> None:
+    def timed(
+        stage: str,
+        fn: Callable[[], Any],
+        *,
+        provider: str | None = None,
+        model: str | None = None,
+    ) -> None:
         nonlocal total_cost
         t0 = time.perf_counter()
         try:
@@ -287,11 +295,15 @@ def run_product_pipeline(
                 stage="split",
                 work=lambda: split_stage.run_split(footage_dir, work_root, force=force),
                 resource_class="ffmpeg",
-                is_cached=(lambda: (project_dir / "segments.json").exists()) if not force else None,
+                is_cached=(lambda: (project_dir / "segments.json").exists())
+                if not force
+                else None,
             )
         )
-    beats_json = bgm_track.with_suffix(".beats.json")
-    if "plan" in todo or not use_hybrid:
+    if not use_hybrid:
+        if bgm_track is None:
+            raise ValueError("The legacy baseline requires a BGM track.")
+        beats_json = bgm_track.with_suffix(".beats.json")
         emit("beats")
         from pipeline.beats import extract_beat_grid
 
@@ -336,7 +348,9 @@ def run_product_pipeline(
         feats = project_dir / "deterministic_features.json"
         if feats.exists():
             stages.append(
-                StageTelemetry(stage="features", provider="opencv", model="deterministic")
+                StageTelemetry(
+                    stage="features", provider="opencv", model="deterministic"
+                )
             )
             emit("features")
 
@@ -385,7 +399,9 @@ def run_product_pipeline(
             model="deterministic",
         )
 
-    if use_hybrid and any(s in todo for s in ("analyze", "director", "plan", "evaluate")):
+    if use_hybrid and any(
+        s in todo for s in ("analyze", "director", "plan", "evaluate")
+    ):
         try:
             # --- analyze ---
             if "analyze" in todo:
@@ -414,81 +430,61 @@ def run_product_pipeline(
                 stages.append(tel)
                 emit("analyze")
 
-            # --- director ---
-            if "director" in todo:
+            # --- editorial intelligence ---
+            # One content-led pass owns TripGraph, separate long/short plans,
+            # actionable critics, and the renderer migration adapter.
+            editorial_stages = [
+                stage for stage in ("director", "plan", "evaluate") if stage in todo
+            ]
+            if editorial_stages:
                 emit("director")
-                t0 = time.perf_counter()
-                create_story_plan(
-                    work_root,
-                    project,
-                    user_intent=user_intent,
-                    config=cfg,
-                    force=force,
-                )
-                tel = _usage_to_telemetry("director", project_dir / "story_plan_usage.json")
-                tel.latency_ms = round((time.perf_counter() - t0) * 1000, 2)
-                total_cost += tel.estimated_cost_usd
-                stages.append(tel)
-                emit("director")
-
-            # --- plan_timeline (code) ---
-            if "plan" in todo:
-                emit("plan")
                 timed(
-                    "plan",
-                    lambda: plan_timeline(work_root, project, bgm_track, force=force),
+                    "director",
+                    lambda: run_editorial_intelligence(
+                        work_root,
+                        project,
+                        user_prompt=user_intent or "",
+                    ),
                     provider="code",
-                    model="plan_timeline",
+                    model="personalized-editorial-intelligence-v1",
                 )
-
-            # --- evaluate ---
-            if "evaluate" in todo:
-                emit("evaluate")
-                t0 = time.perf_counter()
-                skip_luna = str(cfg.quality_mode) == "economy"
-                evaluate_and_repair(
-                    work_root,
-                    project,
-                    bgm_track,
-                    config=cfg,
-                    force=force,
-                    skip_luna=skip_luna,
-                    rebuild_timeline=True,
-                )
-                tel = _usage_to_telemetry(
-                    "evaluate", project_dir / "plan_evaluation_usage.json"
-                )
-                tel.latency_ms = round((time.perf_counter() - t0) * 1000, 2)
-                tel.escalated = bool(
-                    json.loads(
-                        (project_dir / "plan_evaluation.json").read_text(encoding="utf-8")
-                    ).get("sol_used")
-                ) if (project_dir / "plan_evaluation.json").exists() else False
-                total_cost += tel.estimated_cost_usd
-                stages.append(tel)
-                emit("evaluate")
+                for stage in editorial_stages:
+                    if stage == "director":
+                        continue
+                    stages.append(
+                        StageTelemetry(
+                            stage=stage,
+                            provider="code",
+                            model=(
+                                "dual-long-short-planner-v2"
+                                if stage == "plan"
+                                else "actionable-critic-v1"
+                            ),
+                        )
+                    )
+                    emit(stage)
 
             if not (project_dir / "edl_ai.json").exists():
-                raise RuntimeError("hybrid path produced no edl_ai.json")
-            generator = "hybrid"
-        except Exception as hybrid_exc:  # noqa: BLE001 — any hybrid failure → baseline
-            # Fall back to deterministic baseline select
-            generator = "baseline"
+                raise RuntimeError("editorial path produced no edl_ai.json")
+            generator = "editorial"
+        except Exception as editorial_exc:
+            # A broken editorial contract must be visible. Silently replacing it
+            # with order-based effects would produce a valid file but a wrong film.
             stages.append(
                 StageTelemetry(
-                    stage="hybrid_fallback",
+                    stage="editorial_contract",
                     provider="code",
-                    model="select_baseline",
+                    model="personalized-editorial-intelligence-v1",
                     ok=False,
-                    error=str(hybrid_exc)[:300],
+                    error=str(editorial_exc)[:300],
                 )
             )
-            emit("select", error=str(hybrid_exc)[:300], generator="baseline")
-            select_baseline.select_baseline(
-                work_root, project, bgm_track, target_duration_s
-            )
+            emit("editorial_contract", error=str(editorial_exc)[:300])
+            raise
     else:
         # Explicit baseline path
+        if bgm_track is None:
+            raise ValueError("The legacy baseline requires a BGM track.")
         generator = "baseline"
         emit("select")
         timed(

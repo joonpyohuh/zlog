@@ -6,7 +6,12 @@ import {UpgradeToProButton} from '@/components/billing/UpgradeToProButton';
 import {StudioComposer} from '@/components/studio/StudioComposer';
 import {isLocalMode} from '@/lib/local-mode.mjs';
 
-export default async function StudioPage() {
+export default async function StudioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{job?: string}>;
+}) {
+  const {job} = await searchParams;
   const localMode = isLocalMode();
   if (!localMode) {
     const supabase = await createClient();
@@ -41,7 +46,7 @@ export default async function StudioPage() {
     <main className="mx-auto w-full max-w-3xl px-5 pb-24 pt-8">
       <h1 className="brand text-4xl text-white">zlog</h1>
       <p className="mt-2 text-sm text-neutral-500">
-        Studio · hybrid Claude + GPT pipeline via FastAPI (`ZLOG_API_BASE`)
+        Personalized travel editing · separate long and short films
       </p>
       {!apiBase ? (
         <p className="mt-6 rounded-2xl border border-amber-900/40 bg-amber-950/20 p-4 text-sm text-amber-100/80">
@@ -49,7 +54,7 @@ export default async function StudioPage() {
           `http://127.0.0.1:8000`.
         </p>
       ) : null}
-      <StudioComposer apiBase={apiBase} devModeDefault={localMode} />
+      <StudioComposer apiBase={apiBase} devModeDefault={localMode} initialJobId={job} />
     </main>
   );
 }

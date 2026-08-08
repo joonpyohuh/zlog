@@ -112,7 +112,9 @@ def analyze_music(track_path: Path) -> dict[str, Any]:
     )
     # Normalize onset curve 0..1 for JSON
     onset_peak = float(np.max(onset_env)) if len(onset_env) else 1.0
-    onset_norm = (onset_env / onset_peak).astype(np.float64) if onset_peak > 0 else onset_env
+    onset_norm = (
+        (onset_env / onset_peak).astype(np.float64) if onset_peak > 0 else onset_env
+    )
 
     # Sectional energy: 8 equal windows over the track
     n_sec = 8
@@ -146,7 +148,9 @@ def analyze_music(track_path: Path) -> dict[str, Any]:
         "beat_times": beats["beat_times"],
         "downbeat_times": beats["downbeat_times"],
         "onset_strength_series": onset_series,
-        "onset_strength_mean": round(float(np.mean(onset_norm)) if len(onset_norm) else 0.0, 4),
+        "onset_strength_mean": round(
+            float(np.mean(onset_norm)) if len(onset_norm) else 0.0, 4
+        ),
         "energy_curve": energy_curve,
         "sample_rate": sr,
         "beats_json": str(beats_path.as_posix()),
@@ -244,7 +248,9 @@ def _classify_windows(
 
     speech_windows = _merge("speech")
     # Nature: keep longer windows only (important natural sound)
-    nature_windows = [w for w in _merge("nature") if w["end_sec"] - w["start_sec"] >= 0.25]
+    nature_windows = [
+        w for w in _merge("nature") if w["end_sec"] - w["start_sec"] >= 0.25
+    ]
     silence_windows = _merge("silence")
 
     transient_events: list[dict[str, Any]] = []
@@ -411,7 +417,9 @@ def analyze_source_audio(
             "timeline_duration_sec": round(timeline_dur, 3),
             "noise_floor": 0.0,
             "rms_envelope": [],
-            "silence_windows": [{"start_sec": 0.0, "end_sec": round(timeline_dur, 3), "kind": "silence"}],
+            "silence_windows": [
+                {"start_sec": 0.0, "end_sec": round(timeline_dur, 3), "kind": "silence"}
+            ],
             "speech_windows": [],
             "nature_candidates": [],
             "transient_events": [],
@@ -741,6 +749,11 @@ def run_audio_engine(
         }
 
     edl = load_edl(edl_path)
+    if not edl.audio.enabled or not edl.audio.bgm_id.strip():
+        click.echo(
+            "audio engine: no user-selected music; preserving rendered source audio"
+        )
+        return {}
     if footage_dir is None:
         footage_dir = Path("footage") / project
     bgm = resolve_bgm(edl, assets_bgm)

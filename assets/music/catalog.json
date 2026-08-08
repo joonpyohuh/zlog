@@ -1,0 +1,12 @@
+{
+  "tracks": [
+    {
+      "music_id": "demo_track",
+      "title": "Tokyo Memory",
+      "artist": "Zlog Library",
+      "file": "assets/bgm/demo_track.wav",
+      "mood_tags": ["travel", "calm", "nostalgic", "city", "night"],
+      "energy": "medium"
+    }
+  ]
+}
